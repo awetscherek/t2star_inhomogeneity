@@ -1,0 +1,8 @@
+name = "ReadWriteCFL"
+uuid = "4ccd3c78-6ca9-4295-a791-ea80a9bf53c9"
+authors = ["Bastien Lecoeur <bastien.lecoeur@icr.ac.uk>", "Ella Dibden <ella.dibden@icr.ac.uk>"]
+version = "0.1.9"
+
+[compat]
+
+julia = "1.8"
