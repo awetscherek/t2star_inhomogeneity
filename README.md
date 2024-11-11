@@ -11,7 +11,7 @@ Open Folder - Project.toml in that folder contains information about the Package
 
 Start REPL - Julia Extension allows for inspection of variables 
 
-switch to current folder (`]` switches to pkg shell, backspace to get back):
+switch to current folder (`]` switches to pkg shell (blue), backspace to get back):
 ```julia
 ]activate .
 ```
@@ -30,6 +30,8 @@ The script uses the includet function from the Revise package (which usually is 
 ```julia
 using Revise
 ```
+
+Then you should be set up to work through the scripts - I made two examples, one using a 3D NUFFT with CUDA, one with a 2D NUFFT without CUDA.
 
 The best viewer that I've come across for complex-valued multi-dimensional data is the MATLAB tool arrShow (https://github.com/tsumpf/arrShow, command `as`). BART contains readcfl.m and writecfl.m to load .cfl data into MATLAB and display it.
 
