@@ -1,7 +1,7 @@
 includet("load_demo_data.jl")
 includet("demo_recon_2d.jl")
 
-config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("raw_000.data", use_float32=true, use_nom_kz=true);
+config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
 @assert size(noise) ==     ( 19832 ,   8)   # noise measurement could be used for pre-whitening
 @assert size(raw)   ==     (  536  ,   8    ,   8    ,  32  , 269 )
@@ -42,12 +42,12 @@ ReadWriteCFL.writecfl("lowres_img", ComplexF32.(x))
 # full resolution for image reconstruction:
 nx = 256
 ny = 256
-nz = 32
+nz = 32 #number of slices
 
 # run external tool to estimate coil sensitivities (and interpolate to full image resolution):
-run(`../bart-0.9.00/bart fft -u 7 lowres_img lowres_ksp`)
-run(`../bart-0.9.00/bart resize -c 0 $nx 1 $ny 2 $nz lowres_ksp ksp_zerop`)
-run(`../bart-0.9.00/bart ecalib -t 0.01 -m1 ksp_zerop sens`)
+run(`../../bart-0.9.00/bart fft -u 7 lowres_img lowres_ksp`)
+run(`../../bart-0.9.00/bart resize -c 0 $nx 1 $ny 2 $nz lowres_ksp ksp_zerop`)
+run(`../../bart-0.9.00/bart ecalib -t 0.01 -m1 ksp_zerop sens`)
 
 # load coil sensitivities into Julia
 sens = ReadWriteCFL.readcfl("sens");
@@ -73,4 +73,4 @@ for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
 
 end
 
-ReadWriteCFL.writecfl("x", ComplexF32.(x))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/x", ComplexF32.(x))
