@@ -57,30 +57,20 @@ if combine_coils
 end
 #######################################################################################################################
 
-#Accounting for relaxation during readout
-
-#1 gives standard approximation, 536 gives best performance at expense of performance
-num_time_approximations = 536
-#?
-
-#######################################################################################################################
-
 # full-scale reconstruction (can loop over echoes):
 
 x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"], config["necho"]);
 
 for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
-    for (ix, xx) in zip(1:536, eachslice(xe, dims=1))
-        xx .= demo_recon_2d(config, 
-        @view(kx[ix, ie, :, :]),
-        @view(ky[ix, ie, :, :]),
-        @view(raw[:, :, ie, :, :]),
-        [1, ny],
-        combine_coils = combine_coils,
-        sens = combine_coils ? sens : nothing,
-        use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
+    xe .= demo_recon_2d(config, 
+    @view(kx[:, ie, :, :]),
+    @view(ky[:, ie, :, :]),
+    @view(raw[:, :, ie, :, :]),
+    [nx, ny],
+    combine_coils = combine_coils,
+    sens = combine_coils ? sens : nothing,
+    use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
     );
-    end
 end
 
 ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/x_2d", ComplexF32.(x))
