@@ -8,7 +8,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     niter = use_dcf ? 10 : 100, # number of gradient descent iterations
     max_ls = 100,               # number of line search iterations
     alpha0 = 1.0,               # initial step size for line search
-    beta = 0.6)                 # factor to decrease step size
+    beta = 0.9)                 # factor to decrease step size
 
     @assert !combine_coils || !isnothing(sens) "if we want to combine coils we need coil sensitivities ..."
 
@@ -57,7 +57,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     println("Raw shape")
     println(size(raw))
 
-    y_d = reshape(ComplexF64.(permutedims(raw,[1 3 5 4 2])) .* sqrt.(dcf), nkx * config["necho"], :, nz * config["nchan"])[selection, :];
+    y_d = reshape(ComplexF64.(permutedims(raw,[1 3 5 4 2])) .* sqrt.(dcf), nkx * config["necho"], :, nz * config["nchan"]);
 
     println("y_d shape")
     println(size(y_d))
@@ -66,40 +66,41 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
     timepoints = config["necho"] * nkx
 
-    # allocate some arrays:
-    r = Array{ComplexF64}(undef, size(y_d));
-    r_t = Array{ComplexF64}(undef, ny);
-
-    g_t2 = combine_coils ? Array{ComplexF64}(undef, size(t2_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
-    g_s0 = combine_coils ? Array{ComplexF64}(undef, size(t2_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
-
-    u_t2 = Array{ComplexF64}(undef, size(y_d));
-    u_s0 = Array{ComplexF64}(undef, size(y_d));
-
-    tmp_t2 = Array{ComplexF64}(undef, size(y_d));
-    tmp_s0 = Array{ComplexF64}(undef, size(y_d));
-
-    # intermediate results, needed to combine gradient across coils...
-    g_s0_tmp = Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
-    g_t2_tmp = Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
-
     # initial guess:
-    t2_d .= 0.0;
-    s0_d .= 0.0;
+    t2_d .= 50.0;
+    s0_d .= 500.0;
 
     time_since_last_rf = vec(time_since_last_rf)
 
-    println("time_since_last_rf")
-    println(size(time_since_last_rf))
-
     for t = 1:timepoints
-        kx_d_t = kx_d[t,;][selection[t,:]]
+
+        y_d_t = y_d[t,:,:][selection[t,:],:]
+        kx_d_t = kx_d[t,:][selection[t,:]]
         ky_d_t = ky_d[t,:][selection[t,:]]
 
-        println("kx_d_t dimensions")
-        println(size(kx_d_t))
-        println("ky_d_t dimensions")
-        println(size(ky_d_t))
+        # allocate some arrays:
+        g_t2 = combine_coils ? Array{ComplexF64}(undef, size(t2_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
+        g_s0 = combine_coils ? Array{ComplexF64}(undef, size(t2_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
+
+        u_t2 = Array{ComplexF64}(undef, size(y_d_t));
+        u_s0 = Array{ComplexF64}(undef, size(y_d_t));
+
+        tmp_t2 = Array{ComplexF64}(undef, size(y_d_t));
+        tmp_s0 = Array{ComplexF64}(undef, size(y_d_t));
+
+        # intermediate results, needed to combine gradient across coils...
+        g_r_tmp = Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
+        g_r = combine_coils ? Array{ComplexF64}(undef, size(t2_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
+
+        # println("kx_d_t dimensions")
+        # println(size(kx_d_t))
+        # println("ky_d_t dimensions")
+        # println(size(ky_d_t))
+
+        r_t = Array{ComplexF64}(undef, size(kx_d_t,1), nz * config["nchan"]);
+
+        # println("size of r_t")
+        # println(size(r_t))
 
         t_ms = time_since_last_rf[t]
 
@@ -111,51 +112,56 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
         plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
         finufft_setpts!(plan1, kx_d_t, ky_d_t)
 
-        #patial derivatives of t2 and s0 w.r.t. w
-        grad_s0_d = exp.(t_ms ./ t2_d)
-        grad_t2_d = -s0_d .* (t_ms ./ t2_d.^2) .* exp.(t_ms ./ t2_d)
-
         # calculate the residual
         
         w_d_t = s0_d .* exp.(t_ms ./ t2_d)
 
+        # println("size of w_d_t")
+        # println(size(w_d_t))
+
         finufft_exec!(plan2, w_d_t .* c_d, r_t)
         r_t .*= dcf_d;
-        r_t .-= y_d[t];
-        obj = real(r_t[:]' * r_t[:]) / 2.0; # objective function
+        r_t .-= y_d_t;
+
+        # obj = real(r_t[:]' * r_t[:]) / 2.0; # objective function
+        obj = real(sum(abs2, r_t)) / 2.0
         alpha_t2 = alpha0 * beta
         alpha_s0 = alpha0 * beta
         @info "obj0 = $obj"
-        for it = 1:niter
+        for it = 1:10
             alpha_t2 /= beta # otherwise step size alpha decreases too fast ... 
             alpha_s0 /= beta
             obj0 = obj
             if combine_coils
-                finufft_exec!(plan1, (r_t .* dcf_d) .* grad_s0_d, g_s0_tmp)
-                finufft_exec!(plan1, (r_t .* dcf_d) .* grad_t2_d, g_t2_tmp)
-                g_s0 .= sum(reshape(g_s0_tmp, size(c_d)) .* conj(c_d), dims=4);
-                g_t2 .= sum(reshape(g_t2_tmp, size(c_d)) .* conj(c_d), dims=4);    
+                finufft_exec!(plan1, r_t .* dcf_d, g_r_tmp)
+                g_r .= sum(reshape(g_r_tmp, size(c_d)) .* conj(c_d), dims=4); 
             else
-                finufft_exec!(plan1, (r_t .* dcf_d) .* grad_s0_d, g_s0)
-                finufft_exec!(plan1, (r_t .* dcf_d) .* grad_t2_d, g_t2)
+                finufft_exec!(plan1, r_t .* dcf_d, g_r)
             end
             # for line search, we can use that (NU)FFT is a linear operator, so do NUFFT only once:
-            finufft_exec!(plan2, reshape(g_s0, size(w_d_t)) .* c_d, u_s0)
-            finufft_exec!(plan2, reshape(g_t2, size(w_d_t)) .* c_d, u_t2)
+            #w_d = s0 * e ^ (-t / T2*)
+            g_r_reshaped = reshape(g_r, size(t2_d))
+
+            g_s0 = g_r_reshaped .* exp.(-t_ms ./ t2_d)
+            g_t2 = g_r_reshaped .* s0_d .* exp.(-t_ms ./ t2_d) .* (t_ms ./ t2_d.^2)
+
+            finufft_exec!(plan2, reshape(g_s0, size(t2_d)) .* c_d, u_s0)
+            finufft_exec!(plan2, reshape(g_t2, size(t2_d)) .* c_d, u_t2)
+
             u_s0 .*= dcf_d;
             u_t2 .*= dcf_d;
 
             for _ = 1:max_ls 
                 alpha_t2 *= beta
                 tmp_t2 .= r_t .- alpha_t2 * u_t2;
-                obj = real(tmp[:]' * tmp[:]) / 2.0
+                obj = real(tmp_t2[:]' * tmp_t2[:]) / 2.0
                 obj < obj0 && break
             end
 
             for _ = 1:max_ls 
                 alpha_s0 *= beta
                 tmp_s0 .= r_t .- alpha_s0 * u_s0;
-                obj = real(tmp[:]' * tmp[:]) / 2.0
+                obj = real(tmp_s0[:]' * tmp_s0[:]) / 2.0
                 obj < obj0 && break
             end
 
@@ -165,9 +171,9 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
             finufft_exec!(plan2, w_d_t .* c_d, r_t)
             r_t .*= dcf_d;
-            r_t .-= y_d[t];
+            r_t .-= y_d_t;
 
-            @info "it = $it, alpha = $alpha, obj = $obj"
+            @info "it = $it, alpha_s0 = $alpha_s0, alpha_t2 = $alpha_t2, obj = $obj"
         end
 
         finufft_destroy!(plan1)
