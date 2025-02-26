@@ -1,5 +1,5 @@
-includet("load_demo_data.jl")
-includet("recon_2d_T2star_map.jl")
+include("load_demo_data.jl")
+include("recon_2d_T2star_map.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
@@ -59,9 +59,9 @@ end
 
 # full-scale reconstruction (can loop over echoes):
 
-x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
+t2_star_mapping = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
-x .= recon_2d_t2star_map(config, 
+t2_star_mapping .= recon_2d_t2star_map(config, 
 @view(kx[:, :, :, :]),
 @view(ky[:, :, :, :]),
 @view(raw[:, :, :, :, :]),
@@ -72,4 +72,4 @@ sens = combine_coils ? sens : nothing,
 use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
 );
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/t2star_mapping_2d", ComplexF32.(x))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/t2star_mapping_2d", ComplexF32.(t2_star_mapping))
