@@ -57,6 +57,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     y_d = reshape(ComplexF64.(permutedims(raw,[1 3 5 4 2])) .* sqrt.(dcf), nkx * config["necho"], :, nz * config["nchan"])[selection, :];
 
     #TODO: Pass in T2* estimation and see how it reconstructs
+    #TODO: Take in number of points as parameter
     println("y_d shape")
     println(size(y_d))
 
@@ -101,7 +102,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     # r = Array{ComplexF64}(undef,size(y_d));
     println("size of r should be the same as y_d which is")
     println(size(y_d))
-    r = forward_operator(timepoints, kx_d, ky_d, t2_d, s0_d, nz, config, c_d, tol, time_since_last_rf, selection, dims)
+    r = forward_operator(t2_d, s0_d, timepoints, kx_d, ky_d, nz * config["nchan"], c_d, tol, time_since_last_rf, selection, dims)
     r .*= dcf_d;
     r .-= y_d;
 
@@ -144,7 +145,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
         t2_d .-= alpha * reshape(g_t2, size(t2_d));
         s0_d .-= alpha * reshape(g_s0, size(s0_d));
 
-        r = forward_operator(timepoints, kx_d, ky_d, t2_d, s0_d, nz, config, c_d, tol, time_since_last_rf, selection, dims)
+        r = forward_operator(t2_d, s0_d, timepoints, kx_d, ky_d, nz * config["nchan"], c_d, tol, time_since_last_rf, selection, dims)
         r .*= dcf_d;
         r .-= y_d;
 
@@ -157,7 +158,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     t2_d
 end
 
-function forward_operator(timepoints, kx_d, ky_d, t2_d, s0_d, nz, config, c_d, tol, time_since_last_rf, selection, dims)
+function forward_operator(t2_d, s0_d, timepoints, kx_d, ky_d, ntrans, c_d, tol, time_since_last_rf, selection, dims)
     r_list = Vector{Array{ComplexF64}}(undef, timepoints)
     for t in 1:timepoints
         @info "t=$t"
@@ -171,7 +172,7 @@ function forward_operator(timepoints, kx_d, ky_d, t2_d, s0_d, nz, config, c_d, t
         # println("ky_d_t")
         # println(size(ky_d_t))
 
-        plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
+        plan2 = finufft_makeplan(2, dims, 1, ntrans, tol)     # type 2 (forward transform)
         finufft_setpts!(plan2, kx_d_t, ky_d_t)
 
         # calculate the residual
