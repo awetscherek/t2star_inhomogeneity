@@ -1,6 +1,8 @@
 includet("load_demo_data.jl")
 includet("demo_recon_3d_cuda.jl")
 
+using ReadWriteCFL
+
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/raw_000.data", use_float32=true);
 
 @assert size(noise) ==     ( 19832 ,   8)   # noise measurement could be used for pre-whitening
@@ -26,7 +28,6 @@ if combine_coils
     #using ImageView # alternative to arrShow, but doesn't work with complex and CuArray data
     #imshow(abs.(x))
 
-    using ReadWriteCFL
     ReadWriteCFL.writecfl("lowres_img", ComplexF32.(x))
 
     # run external tool to estimate coil sensitivities (and interpolate to full image resolution):

@@ -8,6 +8,7 @@ config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Domi
 # acquisition order: inner => nkx => nchan => necho => nkz => nky => outer
 
 using FFTW
+using ReadWriteCFL
 # perform FFT across slices:
 I = sortperm(-kz[1, 1, :, 1]); # looks like we need to flip the sign to make this work with standard FFT implementations ... we use ifft to account for this minus ...
 v = kz[1, 1, I, 1];
@@ -44,7 +45,6 @@ if combine_coils
     #using ImageView # alternative to arrShow, but doesn't work with complex and CuArray data
     #imshow(abs.(x))
 
-    using ReadWriteCFL
     ReadWriteCFL.writecfl("lowres_img", ComplexF32.(x))
 
     # run external tool to estimate coil sensitivities (and interpolate to full image resolution):
@@ -73,4 +73,4 @@ for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
     );
 end
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/x_2d", ComplexF32.(x))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/x_2d_no_combine_coils", ComplexF32.(x))

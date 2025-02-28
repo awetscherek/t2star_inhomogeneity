@@ -1,5 +1,6 @@
 include("load_demo_data.jl")
-include("recon_2d_T2star_map.jl")
+include("forward_operator_test.jl")
+includet("demo_recon_2d.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
@@ -7,7 +8,6 @@ config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Domi
 @assert size(raw)   ==     (  536  ,   8    ,   8    ,  32  , 269 )
 # acquisition order: inner => nkx => nchan => necho => nkz => nky => outer
 
-using ReadWriteCFL
 using FFTW
 # perform FFT across slices:
 I = sortperm(-kz[1, 1, :, 1]); # looks like we need to flip the sign to make this work with standard FFT implementations ... we use ifft to account for this minus ...
@@ -26,14 +26,12 @@ kx = kx[:, :, 1, :]
 ky = ky[:, :, 1, :]
 kz = nothing
 
-
 # full resolution for image reconstruction:
 nx = 256
 ny = 256
 nz = 32 #number of slices
 
-# low resolution reconstruction of echo 1 for coil sensitivity estimation:
-combine_coils = false
+combine_coils = true
 if combine_coils
     x = demo_recon_2d(config, 
         @view(kx[:, 1, :]),
@@ -55,13 +53,8 @@ if combine_coils
     # load coil sensitivities into Julia
     sens = ReadWriteCFL.readcfl("sens");
 end
-#######################################################################################################################
 
-# full-scale reconstruction (can loop over echoes):
-
-t2_star_mapping = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
-
-t2_star_mapping .= recon_2d_t2star_map(config, 
+forward_operator_test(config, 
 @view(kx[:, :, :, :]),
 @view(ky[:, :, :, :]),
 @view(raw[:, :, :, :, :]),
@@ -71,5 +64,3 @@ combine_coils = combine_coils,
 sens = combine_coils ? sens : nothing,
 use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
 );
-
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/t2star_mapping_2d", ComplexF32.(t2_star_mapping))

@@ -48,6 +48,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     t2_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
     s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
+    println("size of t2_d")
+    println(size(t2_d))
     # this is the raw data from which we want to reconstruct the coil images
     #(timepoints, ky, nz * nchan)
 
@@ -66,8 +68,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     timepoints = config["necho"] * nkx
 
     # initial guess:
-    t2_d .= 20.0;
-    s0_d .= 100.0;
+    t2_d .= 50.0;
+    s0_d .= 1.0;
 
     time_since_last_rf = vec(time_since_last_rf)
 
