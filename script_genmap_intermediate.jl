@@ -10,9 +10,12 @@ nz = 32
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/raw_000.data", use_float32=true, use_nom_kz=true)
 
-combine_coils = false
+combine_coils = true
 
-echo_times = time_since_last_rf[1,:,1,1]
+print("size since last rf")
+println(size(time_since_last_rf))
+
+echo_times = time_since_last_rf[268,:,1,1]
 
 println("Echo times: ", echo_times)
 
@@ -23,6 +26,8 @@ else
     #Shape (nx, ny, nz, nchan, necho)
     x = ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/x_2d_no_combine_coils")
 end
+
+println("data loaded")
 
 # Function to model the exponential decay
 function exp_decay(t, S)
@@ -40,7 +45,8 @@ function fit_t2_star(voxel_data, echo_times)
     init_guess = [voxel_data[1], 50.0]
 
     # Curve fitting
-    fit = curve_fit(exp_decay, echo_times, voxel_data, init_guess,lower=[0.0, 0.0], upper=[voxel_data[1], 500.0])
+    fit = curve_fit(exp_decay, echo_times, voxel_data, init_guess,lower=[0.0, 0.0], upper=[voxel_data[1], 1000.0])
+    # fit = curve_fit(exp_decay, echo_times, voxel_data, init_guess)
 
     return fit.param  # Extract fitted T2* value
 end
