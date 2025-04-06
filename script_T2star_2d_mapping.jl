@@ -1,5 +1,6 @@
 include("load_demo_data.jl")
 include("recon_2d_T2star_map.jl")
+includet("demo_recon_2d.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
@@ -33,7 +34,7 @@ ny = 256
 nz = 32 #number of slices
 
 # low resolution reconstruction of echo 1 for coil sensitivity estimation:
-combine_coils = false
+combine_coils = true
 if combine_coils
     x = demo_recon_2d(config, 
         @view(kx[:, 1, :]),
@@ -68,6 +69,7 @@ t2_star_mapping .= recon_2d_t2star_map(config,
 time_since_last_rf,
 [nx, ny],
 combine_coils = combine_coils,
+niter=10,
 sens = combine_coils ? sens : nothing,
 use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
 );
