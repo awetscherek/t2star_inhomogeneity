@@ -26,17 +26,20 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
     c_d = combine_coils ? sens : [1.0]; # this shouldn't make a copy of sens
 
-    # println("kx and ky shape")
-    # println(size(kx))
-    # println(size(ky))
+    println("size of c_d")
+    println(size(c_d))
+
+    println("kx and ky shape")
+    println(size(kx))
+    println(size(ky))
 
     # use only raw data from 1st echo (most signal), normalize non-uniform frequency on pixel size (FOV/n)
     kx_d = reshape(permutedims(kx, [2 1 3 4]) * config["FOVx"] / nx * 2 * pi, :, nky);
     ky_d = reshape(permutedims(ky, [2 1 3 4]) * config["FOVy"] / ny * 2 * pi, :, nky);
 
-    # println("kx_d and ky_d shape")
-    # println(size(kx_d))
-    # println(size(ky_d))
+    println("kx_d and ky_d shape")
+    println(size(kx_d))
+    println(size(ky_d))
 
     # and use only data from central k-space region:
     selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi;
@@ -54,13 +57,13 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     # this is the raw data from which we want to reconstruct the coil images
     #(timepoints, ky, nz * nchan)
 
-    # println("Raw shape")
-    # println(size(raw))
+    println("Raw shape")
+    println(size(raw))
 
     y_d = reshape(ComplexF64.(permutedims(raw,[3 1 5 4 2])) .* sqrt.(dcf), config["necho"] * nkx, :, nz * config["nchan"])[selection, :];
 
-    # println("y_d shape")
-    # println(size(y_d))
+    println("y_d shape")
+    println(size(y_d))
 
     dcf_d = use_dcf ? reshape(repeat(sqrt.(dcf), outer = (1, size(ky, 2))), :)[selection] : 1.0;
     
@@ -117,7 +120,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     y .*= dcf_d;
     r = y .- y_d;
 
-    println("size of y after")
+    println("size of r after")
     println(size(r))
 
     obj = real(r[:]' * r[:]) / 2.0; # objective function
@@ -136,21 +139,27 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
         
         g_s0, g_t2 = jacobian_operator(plan1, r, t2_d, s0_d, dcf_d, combine_coils, c_d, timepoints, total_timepoints, time_since_last_rf, kx_d ,ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
 
-        u = forward_operator(plan2, g_t2, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
-        u .*= dcf_d;
+        # u = forward_operator(plan2, g_t2, g_s0, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+        # u .*= dcf_d;
 
-        println("Performing Line search to T2")
+        println("Performing Line search")
         for it = 1:max_ls
             println("Iter: $it")
             alpha *= beta
-            tmp .= r .- alpha * u;
+
+            t2_trial_d = t2_d .-= alpha .* reshape(g_t2, size(t2_d));
+            s0_trial_d = s0_d .-= alpha .* reshape(g_s0, size(s0_d));
+
+            y_tmp = forward_operator(plan2, t2_trial_d, s0_trial_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+            # tmp .= r .- alpha * u;
+            tmp .= y_tmp .- y_d
             obj = real(tmp[:]' * tmp[:]) / 2.0
             obj < obj0 && break
         end
 
         # Gradient Descent Updates
-        t2_d .-= alpha * reshape(g_t2, size(t2_d));
-        s0_d .-= alpha * reshape(g_s0, size(s0_d));
+        t2_d .-= alpha .* reshape(g_t2, size(t2_d));
+        s0_d .-= alpha .* reshape(g_s0, size(s0_d));
 
         y = forward_operator(plan2, t2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
         y .*= dcf_d;
@@ -172,7 +181,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     t2_d
 end
 
-function forward_operator(plan2, t2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+function forward_operator(plan2, t2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d,
+    c_d, time_since_last_rf, selection, timepoint_window_size)
     y_list = Vector{Array{ComplexF64}}(undef, timepoints)
     for t in 1:timepoints
         @info "t=$t"
@@ -181,9 +191,10 @@ function forward_operator(plan2, t2_d, s0_d, timepoints, total_timepoints, kx_d,
         approx_t = round(Int, (t_start + t_end) / 2)
 
         t_ms = time_since_last_rf[approx_t]
- 
-        kx_d_t = collect(kx_d[t_start:t_end,:][selection[t_start:t_end,:]])
-        ky_d_t = collect(ky_d[t_start:t_end,:][selection[t_start:t_end,:]])
+
+        sel = selection[t_start:t_end, :]
+        kx_d_t = collect(kx_d[t_start:t_end,:][sel])
+        ky_d_t = collect(ky_d[t_start:t_end,:][sel])
 
         # println("kx_d_t")
         # println(size(kx_d_t))
@@ -195,13 +206,13 @@ function forward_operator(plan2, t2_d, s0_d, timepoints, total_timepoints, kx_d,
         # calculate the residual
         w_d_t = s0_d .* exp.(- t_ms ./ t2_d)
 
-        println("size of w_d_t")
-        println(size(w_d_t))
+        # println("size of w_d_t")
+        # println(size(w_d_t))
 
         y_t = finufft_exec(plan2, w_d_t .* c_d)
 
-        println("size of y_t")
-        println(size(y_t))
+        # println("size of y_t")
+        # println(size(y_t))
         
         y_list[t] = y_t
     end
@@ -265,10 +276,11 @@ function jacobian_operator(plan1, r, t2_d, s0_d, dcf_d, combine_coils, c_d,
             g_r_result_t = reshape(g_r_t, size(t2_d))
         end
 
+        #added the minus - check
         dt_dt2 = exp.(-t_ms ./ t2_d)
-        g_s0_t = g_r_result_t .* dt_dt2
-        g_s0_total .-= g_s0_t
-        g_t2_total .-= (g_s0_t .* s0_d .* (t_ms ./ t2_d.^2))
+        g_s0_t = - g_r_result_t .* dt_dt2
+        g_s0_total .+= g_s0_t
+        g_t2_total .+= (g_s0_t .* s0_d .* (t_ms ./ t2_d.^2))
 
         start_idx += npoints
     end
