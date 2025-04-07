@@ -1,6 +1,6 @@
 include("load_demo_data.jl")
 include("recon_2d_T2star_map.jl")
-includet("demo_recon_2d.jl")
+include("demo_recon_2d.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
