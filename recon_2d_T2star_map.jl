@@ -26,44 +26,25 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
     c_d = combine_coils ? sens : [1.0]; # this shouldn't make a copy of sens
 
-    # println("kx and ky shape")
-    # println(size(kx))
-    # println(size(ky))
-
     # use only raw data from 1st echo (most signal), normalize non-uniform frequency on pixel size (FOV/n)
     kx_d = reshape(permutedims(kx, [2 1 3 4]) * config["FOVx"] / nx * 2 * pi, :, nky);
     ky_d = reshape(permutedims(ky, [2 1 3 4]) * config["FOVy"] / ny * 2 * pi, :, nky);
 
-    # println("kx_d and ky_d shape")
-    # println(size(kx_d))
-    # println(size(ky_d))
-
     # and use only data from central k-space region:
     selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi;
 
-    # println("selection shape")
-    # println(size(selection))
-
     # this is where the coil images will be stored - note that we still will reconstruct several slices:
-    t2_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+    r2_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
     s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
-    t2_d_tmp = Array{Float64}(undef, size(t2_d));
+    #Allocate temporary R2 and s0 arrays for line search
+    r2_d_tmp = Array{Float64}(undef, size(r2_d));
     s0_d_tmp = Array{ComplexF64}(undef, size(s0_d));
-
-    # println("size of t2_d")
-    # println(size(t2_d))
 
     # this is the raw data from which we want to reconstruct the coil images
     #(timepoints, ky, nz * nchan)
 
-    # println("Raw shape")
-    # println(size(raw))
-
     y_d = reshape(ComplexF64.(permutedims(raw,[3 1 5 4 2])) .* sqrt.(dcf), config["necho"] * nkx, :, nz * config["nchan"])[selection, :];
-
-    # println("y_d shape")
-    # println(size(y_d))
 
     dcf_d = use_dcf ? reshape(repeat(sqrt.(dcf), outer = (1, size(ky, 2))), :)[selection] : 1.0;
     
@@ -77,46 +58,34 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     total_timepoints = config["necho"] * nkx
     timepoints = ceil(Int, total_timepoints / timepoint_window_size)
 
-    # initial guess of T2 and S0:
-    t2_d .= 50.0; #50.0
+    # Initial guess of R2 and S0:
+    r2_d .= (1/50.0);
     s0_d .= 0.0;
 
-    #Benchmark of forward operator using  T2 and S0 mappings from Intermediate Generation
-    # if combine_coils
-    #     t2_d = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/t2star_2d"))
+    #Benchmark of forward operator using  R2 and S0 mappings from Intermediate Generation
+    # if combine_coils        
+    #     r2_d = Float64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/t2star_2d")))
     #     s0_d = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/s0_2d"))
     # else
-    #     t2_d = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/t2star_2d_no_combine_coils"))
+    #     r2_d = Float64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/t2star_2d_no_combine_coils")))
     #     s0_d = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/s0_2d_no_combine_coils"))
     # end
 
     time_since_last_rf = vec(time_since_last_rf)
 
-    # allocate some arrays:
-    u = Array{ComplexF64}(undef, size(y_d));
-
-    tmp = Array{ComplexF64}(undef, size(y_d));
-
-    # intermediate results, needed to combine gradient across coils...
-    # g_r_tmp = Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
-    # g_r = combine_coils ? Array{ComplexF64}(undef, size(t2_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
+    #intermediate result, required for gradient at each time point
     g_r_t = Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
-    g_t2 = combine_coils ? Array{ComplexF64}(undef, size(t2_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
-    g_s0 = combine_coils ? Array{ComplexF64}(undef, size(t2_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
+    g_r2 = combine_coils ? Array{ComplexF64}(undef, size(r2_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
+    g_s0 = combine_coils ? Array{ComplexF64}(undef, size(s0_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
 
     # plan NUFFTs:
     plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
     plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
 
     r = Array{ComplexF64}(undef,size(y_d));
-    # println("size of r should be the same as y_d which is")
-    # println(size(y_d))
-    r .= forward_operator(plan2, t2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+    r .= forward_operator(plan2, r2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
     r .*= dcf_d;
     r .-= y_d;
-
-    # println("size of r after")
-    # println(size(r))
 
     obj = real(r[:]' * r[:]) / 2.0; # objective function
     alpha = alpha0 * beta
@@ -132,23 +101,19 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
         alpha /= (beta^2)
         obj0 = obj
         
-        g_s0, g_t2 = jacobian_operator(plan1, r, t2_d, s0_d, dcf_d, combine_coils, c_d, timepoints, total_timepoints, time_since_last_rf, kx_d ,ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
+        g_r2, g_s0 = jacobian_operator(plan1, r, r2_d, s0_d, dcf_d, combine_coils, c_d, timepoints, total_timepoints, time_since_last_rf, kx_d ,ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
 
         println("Performing Line search")
         for it = 1:max_ls
             println("Iter: $it")
             alpha *= beta
 
-            t2_d_tmp .= t2_d .- alpha .* reshape(g_t2, size(t2_d));
+            r2_d_tmp .= r2_d .- alpha .* reshape(g_r2, size(r2_d));
             s0_d_tmp .= s0_d .- alpha .* reshape(g_s0, size(s0_d));
 
-            t2_d_tmp = max.(t2_d_tmp, 1.0)
+            r2_d_tmp .= min.(r2_d_tmp, 1.0)
 
-            # y_tmp = forward_operator(plan2, t2_trial_d, s0_trial_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
-
-            # tmp .= y_tmp .- y_d
-
-            r .= forward_operator(plan2, t2_d_tmp, s0_d_tmp, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+            r .= forward_operator(plan2, r2_d_tmp, s0_d_tmp, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
             r .*= dcf_d;
             r .-= y_d;
 
@@ -157,16 +122,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
             obj < obj0 && break
         end
 
-        t2_d .= t2_d_tmp
+        r2_d .= r2_d_tmp
         s0_d .= s0_d_tmp
-
-        # Gradient Descent Updates
-        # t2_d .-= alpha .* reshape(g_t2, size(t2_d));
-        # s0_d .-= alpha .* reshape(g_s0, size(s0_d));
-
-        # t2_d = max.(t2_d, 1.0)
-
-        # obj = real(r[:]' * r[:]) / 2.0
 
         info="it = $it, alpha = $alpha, obj = $obj"
         @info info
@@ -179,10 +136,10 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     finufft_destroy!(plan2)
 
     # collect results from GPU & return: 
-    t2_d
+    1 ./ r2_d
 end
 
-function forward_operator(plan2, t2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d,
+function forward_operator(plan2, r2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d,
     c_d, time_since_last_rf, selection, timepoint_window_size)
     y_list = Vector{Array{ComplexF64}}(undef, timepoints)
     for t in 1:timepoints
@@ -197,40 +154,28 @@ function forward_operator(plan2, t2_d, s0_d, timepoints, total_timepoints, kx_d,
         kx_d_t = collect(kx_d[t_start:t_end,:][sel])
         ky_d_t = collect(ky_d[t_start:t_end,:][sel])
 
-        # println("kx_d_t")
-        # println(size(kx_d_t))
-        # println("ky_d_t")
-        # println(size(ky_d_t))
-
         finufft_setpts!(plan2, kx_d_t, ky_d_t)
 
         # calculate the residual
-        w_d_t = s0_d .* exp.(- t_ms ./ t2_d)
-
-        # println("size of w_d_t")
-        # println(size(w_d_t))
+        w_d_t = s0_d .* exp.(- t_ms .* r2_d)
 
         y_t = finufft_exec(plan2, w_d_t .* c_d)
-
-        # println("size of y_t")
-        # println(size(y_t))
         
         y_list[t] = y_t
     end
     y = vcat(y_list...)
-    # println("size of y")
-    # println(size(y))
 
     # z = zeros(ComplexF64, 1141624,256)
     # return z
     return y
 end
 
-function jacobian_operator(plan1, r, t2_d, s0_d, dcf_d, combine_coils, c_d, 
+function jacobian_operator(plan1, r, r2_d, s0_d, dcf_d, combine_coils, c_d, 
     timepoints, total_timepoints, time_since_last_rf, kx_d, ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
-    # Initialize gradients (same size as the image)
-    g_s0_total = zeros(ComplexF64, size(t2_d))
-    g_t2_total_complex = zeros(ComplexF64, size(t2_d))
+    
+    # Initialize sum of gradients (nx,ny,nz,nchan) prior to summing of gradients over coils
+    g_s0_total = zeros(ComplexF64, size(c_d))
+    g_r2_total = zeros(ComplexF64, size(c_d))
 
     start_idx = 1
     for t in 1:timepoints
@@ -246,49 +191,40 @@ function jacobian_operator(plan1, r, t2_d, s0_d, dcf_d, combine_coils, c_d,
         sel = selection[t_start:t_end, :]
         npoints = sum(sel)
 
-        # println("selection size")
-        # println(size(sel))
-
         # Extract the segment of the residual corresponding to timepoint t.
         r_t = r[start_idx:start_idx + npoints - 1, :]
-
-        # println("size r_t")
-        # println(size(r_t))
 
         dcf_t = use_dcf ? view(dcf_d, start_idx:start_idx+npoints-1) : 1.0
 
         kx_d_t = collect(kx_d[t_start:t_end, :][sel])
         ky_d_t = collect(ky_d[t_start:t_end, :][sel])
 
-        # println("size of kx_d_t")
-        # println(size(kx_d_t))
-        # println("size of ky_d_t")
-        # println(size(ky_d_t))
-
         finufft_setpts!(plan1, kx_d_t, ky_d_t)
-        #should be nkx, nky, nkz*nchan
 
         finufft_exec!(plan1, r_t .* dcf_t, g_r_t)
 
         if combine_coils
-            g_r_result_t = sum(reshape(g_r_t, size(c_d)) .* conj(c_d), dims=4);
-            g_r_result_t = dropdims(g_r_result_t; dims=4)
+            g_r_result_t = reshape(g_r_t, size(c_d)) .* conj(c_d);
         else
-            g_r_result_t = reshape(g_r_t, size(t2_d))
+            g_r_result_t = reshape(g_r_t, size(r2_d))
         end
 
-        #use r2
         conj_s0 = conj.(s0_d)
-        exp_term = exp.(-t_ms ./ t2_d)
-        t2_sq_inv_term = (t_ms ./ (t2_d.^2))
+        exp_term = exp.(- t_ms .* r2_d)
 
-        complex_term_t2 = conj_s0 .* exp_term .* t2_sq_inv_term .* g_r_result_t
-
-        g_t2_total_complex .+= complex_term_t2
+        g_r2_total .+= (- conj_s0 .* t_ms .* exp_term)
         g_s0_total .+= exp_term .* g_r_result_t
+
+        #TODO: Maybe put the sum of gradients in for loop instead of at end
 
         start_idx += npoints
     end
-    return g_s0_total, real.(g_t2_total_complex)
+
+    if combine_coils
+        g_r2_total = dropdims(sum(g_r2_total, dims=4), dims=4)
+        g_s0_total = dropdims(sum(g_s0_total, dims=4), dims=4)
+    end
+
+    return real.(g_r2_total), g_s0_total
 end
 

@@ -34,7 +34,7 @@ ny = 256
 nz = 32 #number of slices
 
 # low resolution reconstruction of echo 1 for coil sensitivity estimation:
-combine_coils = false
+combine_coils = true
 if combine_coils
     x = demo_recon_2d(config, 
         @view(kx[:, 1, :]),
@@ -69,7 +69,7 @@ t2_star_mapping .= recon_2d_t2star_map(config,
 time_since_last_rf,
 [nx, ny],
 combine_coils = combine_coils,
-niter=10,
+niter=100,
 sens = combine_coils ? sens : nothing,
 use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
 );
