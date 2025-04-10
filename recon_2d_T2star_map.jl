@@ -8,7 +8,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     niter = use_dcf ? 10 : 100, # number of gradient descent iterations
     max_ls = 100,               # number of line search iterations
     alpha0 = 1.0,               # initial step size for line search
-    beta = 0.5)                 # factor to decrease step size
+    beta = 0.1)                 # factor to decrease step size
 
     @assert !combine_coils || !isnothing(sens) "if we want to combine coils we need coil sensitivities ..."
 
@@ -26,20 +26,17 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
     c_d = combine_coils ? sens : [1.0]; # this shouldn't make a copy of sens
 
-    println("size of c_d")
-    println(size(c_d))
-
-    println("kx and ky shape")
-    println(size(kx))
-    println(size(ky))
+    # println("kx and ky shape")
+    # println(size(kx))
+    # println(size(ky))
 
     # use only raw data from 1st echo (most signal), normalize non-uniform frequency on pixel size (FOV/n)
     kx_d = reshape(permutedims(kx, [2 1 3 4]) * config["FOVx"] / nx * 2 * pi, :, nky);
     ky_d = reshape(permutedims(ky, [2 1 3 4]) * config["FOVy"] / ny * 2 * pi, :, nky);
 
-    println("kx_d and ky_d shape")
-    println(size(kx_d))
-    println(size(ky_d))
+    # println("kx_d and ky_d shape")
+    # println(size(kx_d))
+    # println(size(ky_d))
 
     # and use only data from central k-space region:
     selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi;
@@ -48,8 +45,11 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     # println(size(selection))
 
     # this is where the coil images will be stored - note that we still will reconstruct several slices:
-    t2_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
+    t2_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
     s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
+
+    t2_d_tmp = Array{Float64}(undef, size(t2_d));
+    s0_d_tmp = Array{ComplexF64}(undef, size(s0_d));
 
     # println("size of t2_d")
     # println(size(t2_d))
@@ -57,13 +57,13 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     # this is the raw data from which we want to reconstruct the coil images
     #(timepoints, ky, nz * nchan)
 
-    println("Raw shape")
-    println(size(raw))
+    # println("Raw shape")
+    # println(size(raw))
 
     y_d = reshape(ComplexF64.(permutedims(raw,[3 1 5 4 2])) .* sqrt.(dcf), config["necho"] * nkx, :, nz * config["nchan"])[selection, :];
 
-    println("y_d shape")
-    println(size(y_d))
+    # println("y_d shape")
+    # println(size(y_d))
 
     dcf_d = use_dcf ? reshape(repeat(sqrt.(dcf), outer = (1, size(ky, 2))), :)[selection] : 1.0;
     
@@ -79,7 +79,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
     # initial guess of T2 and S0:
     t2_d .= 50.0; #50.0
-    s0_d .= 1.0;
+    s0_d .= 0.0;
 
     #Benchmark of forward operator using  T2 and S0 mappings from Intermediate Generation
     # if combine_coils
@@ -106,22 +106,17 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
     # plan NUFFTs:
     plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
-    # finufft_setpts!(plan1, kx_d[selection], ky_d[selection])
-
     plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
 
-    # plan3 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
-    # finufft_setpts!(plan3, kx_d[selection], ky_d[selection])
+    r = Array{ComplexF64}(undef,size(y_d));
+    # println("size of r should be the same as y_d which is")
+    # println(size(y_d))
+    r .= forward_operator(plan2, t2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+    r .*= dcf_d;
+    r .-= y_d;
 
-    # r = Array{ComplexF64}(undef,size(y_d));
-    println("size of r should be the same as y_d which is")
-    println(size(y_d))
-    y = forward_operator(plan2, t2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
-    y .*= dcf_d;
-    r = y .- y_d;
-
-    println("size of r after")
-    println(size(r))
+    # println("size of r after")
+    # println(size(r))
 
     obj = real(r[:]' * r[:]) / 2.0; # objective function
     alpha = alpha0 * beta
@@ -134,38 +129,44 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     end
 
     for it = 1:niter
-        alpha /= beta
+        alpha /= (beta^2)
         obj0 = obj
         
         g_s0, g_t2 = jacobian_operator(plan1, r, t2_d, s0_d, dcf_d, combine_coils, c_d, timepoints, total_timepoints, time_since_last_rf, kx_d ,ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
-
-        # u = forward_operator(plan2, g_t2, g_s0, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
-        # u .*= dcf_d;
 
         println("Performing Line search")
         for it = 1:max_ls
             println("Iter: $it")
             alpha *= beta
 
-            t2_trial_d = t2_d .-= alpha .* reshape(g_t2, size(t2_d));
-            s0_trial_d = s0_d .-= alpha .* reshape(g_s0, size(s0_d));
+            t2_d_tmp .= t2_d .- alpha .* reshape(g_t2, size(t2_d));
+            s0_d_tmp .= s0_d .- alpha .* reshape(g_s0, size(s0_d));
 
-            y_tmp = forward_operator(plan2, t2_trial_d, s0_trial_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
-            # tmp .= r .- alpha * u;
-            tmp .= y_tmp .- y_d
-            obj = real(tmp[:]' * tmp[:]) / 2.0
+            t2_d_tmp = max.(t2_d_tmp, 1.0)
+
+            # y_tmp = forward_operator(plan2, t2_trial_d, s0_trial_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+
+            # tmp .= y_tmp .- y_d
+
+            r .= forward_operator(plan2, t2_d_tmp, s0_d_tmp, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+            r .*= dcf_d;
+            r .-= y_d;
+
+            obj = real(r[:]' * r[:]) / 2.0
+            println("New objective: $obj")
             obj < obj0 && break
         end
 
+        t2_d .= t2_d_tmp
+        s0_d .= s0_d_tmp
+
         # Gradient Descent Updates
-        t2_d .-= alpha .* reshape(g_t2, size(t2_d));
-        s0_d .-= alpha .* reshape(g_s0, size(s0_d));
+        # t2_d .-= alpha .* reshape(g_t2, size(t2_d));
+        # s0_d .-= alpha .* reshape(g_s0, size(s0_d));
 
-        y = forward_operator(plan2, t2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
-        y .*= dcf_d;
-        r = y .- y_d;
+        # t2_d = max.(t2_d, 1.0)
 
-        obj = real(r[:]' * r[:]) / 2.0
+        # obj = real(r[:]' * r[:]) / 2.0
 
         info="it = $it, alpha = $alpha, obj = $obj"
         @info info
@@ -229,7 +230,7 @@ function jacobian_operator(plan1, r, t2_d, s0_d, dcf_d, combine_coils, c_d,
     timepoints, total_timepoints, time_since_last_rf, kx_d, ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
     # Initialize gradients (same size as the image)
     g_s0_total = zeros(ComplexF64, size(t2_d))
-    g_t2_total = zeros(ComplexF64, size(t2_d))
+    g_t2_total_complex = zeros(ComplexF64, size(t2_d))
 
     start_idx = 1
     for t in 1:timepoints
@@ -276,14 +277,18 @@ function jacobian_operator(plan1, r, t2_d, s0_d, dcf_d, combine_coils, c_d,
             g_r_result_t = reshape(g_r_t, size(t2_d))
         end
 
-        #added the minus - check
-        dt_dt2 = exp.(-t_ms ./ t2_d)
-        g_s0_t = - g_r_result_t .* dt_dt2
-        g_s0_total .+= g_s0_t
-        g_t2_total .+= (g_s0_t .* s0_d .* (t_ms ./ t2_d.^2))
+        #use r2
+        conj_s0 = conj.(s0_d)
+        exp_term = exp.(-t_ms ./ t2_d)
+        t2_sq_inv_term = (t_ms ./ (t2_d.^2))
+
+        complex_term_t2 = conj_s0 .* exp_term .* t2_sq_inv_term .* g_r_result_t
+
+        g_t2_total_complex .+= complex_term_t2
+        g_s0_total .+= exp_term .* g_r_result_t
 
         start_idx += npoints
     end
-    return g_s0_total, g_t2_total
+    return g_s0_total, real.(g_t2_total_complex)
 end
 
