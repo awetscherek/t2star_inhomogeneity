@@ -27,13 +27,6 @@ function load_demo_data(filename; use_float32 = false, use_nom_kz = false)
         [read(io, name) for name in ["kx", "ky", "kz", "b0", "time_since_last_rf"]]
     end
 
-    # println("time since last rf")
-    # println(size(time_since_last_rf))
-    # print("along a spoke for an echo")
-    # println(time_since_last_rf[:,1,1,1])
-    # print("along the same point for all echos")
-    # println(time_since_last_rf[1,:,1,1])
-
     # Now all the data is loaded ...
     for c = 1:config["nchan"]
         # apply coil-specific phase correction:
