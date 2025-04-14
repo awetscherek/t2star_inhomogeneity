@@ -1,0 +1,223 @@
+using FINUFFT
+
+function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # keyword arguments: 
+    combine_coils = false,      # whether to use coil sensitivities
+    sens = nothing,             # coil sensitivities ...
+    use_dcf = false,            # whether to use pre-conditioner
+    tol = 1e-9,                 # tolerance for FINUFFT
+    niter = use_dcf ? 10 : 100, # number of gradient descent iterations
+    max_ls = 100,               # number of line search iterations
+    alpha0 = 1.0,               # initial step size for line search
+    timepoint_window_size=536,
+    beta = 0.05)                 # factor to decrease step size
+
+    @assert !combine_coils || !isnothing(sens) "if we want to combine coils we need coil sensitivities ..."
+
+    #kx and ky should be of shape
+    #(269,8,536)
+    # nky => necho => nkx
+    nx, ny = dims;
+    nz = size(raw, 4) # this assumes only data from one echo is passed to the function, but several slices, so raw should be a 4D array
+
+    nkx, _, nky,_ = size(kx)
+
+    @assert timepoint_window_size <= nkx "The timepoint window size cannot be larger than nkx"
+
+    # this preconditioner could help speed up convergence:
+    dcf = use_dcf ? abs.(-size(ky, 1)/2+0.5:size(ky, 1)/2) : 1.0
+    dcf = dcf ./ maximum(dcf)
+
+    c_d = combine_coils ? sens : [1.0]; # this shouldn't make a copy of sens
+
+    # use only raw data from 1st echo (most signal), normalize non-uniform frequency on pixel size (FOV/n)
+    kx_d = reshape(permutedims(kx, [2 1 3 4]) * config["FOVx"] / nx * 2 * pi, :, nky);
+    ky_d = reshape(permutedims(ky, [2 1 3 4]) * config["FOVy"] / ny * 2 * pi, :, nky);
+
+    # and use only data from central k-space region:
+    selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi;
+
+    # this is where the coil images will be stored - note that we still will reconstruct several slices:
+    r2_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+    s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
+
+    #Allocate temporary R2 and s0 arrays for line search
+    r2_d_tmp = Array{Float64}(undef, size(r2_d));
+    s0_d_tmp = Array{ComplexF64}(undef, size(s0_d));
+
+    # this is the raw data from which we want to reconstruct the coil images
+    #(timepoints, ky, nz * nchan)
+
+    y_d = reshape(ComplexF64.(permutedims(raw,[3 1 5 4 2])) .* sqrt.(dcf), config["necho"] * nkx, :, nz * config["nchan"])[selection, :];
+
+    dcf_d = use_dcf ? reshape(repeat(sqrt.(dcf), outer = (1, size(ky, 2))), :)[selection] : 1.0;
+
+    total_timepoints = config["necho"] * nkx
+    timepoints = ceil(Int, total_timepoints / timepoint_window_size)
+
+    # Initial guess of R2 and S0:
+    r2_d .= (1/50.0);
+    s0_d .= 0.0;
+
+    #Benchmark of forward operator using  R2 and S0 mappings from Intermediate Generation
+    # if combine_coils        
+    #     r2_d = Float64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/intermediate_image_t2star_2d")))
+    #     s0_d = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/intermediate_image_s0_2d"))
+    # else
+    #     r2_d = Float64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/intermediate_image_t2star_2d_no_combine_coils")))
+    #     s0_d = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/intermediate_image_s0_2d_no_combine_coils"))
+    # end
+
+    time_since_last_rf = vec(time_since_last_rf)
+
+    #intermediate result, required for gradient at each time point
+    g_r_t = Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
+    g_r2 = combine_coils ? Array{ComplexF64}(undef, size(r2_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
+    g_s0 = combine_coils ? Array{ComplexF64}(undef, size(s0_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
+
+    # plan NUFFTs:
+    plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
+    plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
+
+    r = Array{ComplexF64}(undef,size(y_d));
+    r .= forward_operator(plan2, r2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+    r .*= dcf_d;
+    r .-= y_d;
+
+    obj = real(r[:]' * r[:]) / 2.0; # objective function
+    alpha = alpha0 * beta
+
+    initial_obj = "Initial obj = $obj"
+    @info initial_obj
+
+    open("output.txt", "a") do f
+        println(f, string(initial_obj))
+    end
+
+    for it = 1:niter
+        alpha /= (beta^2)
+        obj0 = obj
+        
+        g_r2, g_s0 = jacobian_operator(plan1, r, r2_d, s0_d, dcf_d, combine_coils, c_d, timepoints, total_timepoints, time_since_last_rf, kx_d ,ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
+
+        println("Performing Line search")
+        for it = 1:max_ls
+            println("Iter: $it")
+            alpha *= beta
+
+            r2_d_tmp .= r2_d .- alpha .* reshape(g_r2, size(r2_d));
+            s0_d_tmp .= s0_d .- alpha .* reshape(g_s0, size(s0_d));
+
+            r2_d_tmp .= min.(r2_d_tmp, 1.0)
+
+            r .= forward_operator(plan2, r2_d_tmp, s0_d_tmp, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+            r .*= dcf_d;
+            r .-= y_d;
+
+            obj = real(r[:]' * r[:]) / 2.0
+            println("New objective: $obj")
+            obj < obj0 && break
+        end
+
+        r2_d .= r2_d_tmp
+        s0_d .= s0_d_tmp
+
+        info="it = $it, alpha = $alpha, obj = $obj"
+        @info info
+        open("output.txt", "a") do f
+            println(f, string(info))
+        end
+    end
+
+    finufft_destroy!(plan1)
+    finufft_destroy!(plan2)
+
+    # collect results from GPU & return: 
+    1 ./ r2_d, s0_d
+end
+
+function forward_operator(plan2, r2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d,
+    c_d, time_since_last_rf, selection, timepoint_window_size)
+    y_list = Vector{Array{ComplexF64}}(undef, timepoints)
+    for t in 1:timepoints
+        @info "t=$t"
+        t_start = (t-1) * timepoint_window_size + 1
+        t_end = min(t * timepoint_window_size, total_timepoints)
+        approx_t = round(Int, (t_start + t_end) / 2)
+
+        t_ms = time_since_last_rf[approx_t]
+
+        sel = selection[t_start:t_end, :]
+        kx_d_t = collect(kx_d[t_start:t_end,:][sel])
+        ky_d_t = collect(ky_d[t_start:t_end,:][sel])
+
+        finufft_setpts!(plan2, kx_d_t, ky_d_t)
+
+        w_d_t = s0_d .* exp.(- t_ms .* r2_d)
+
+        y_t = finufft_exec(plan2, w_d_t .* c_d)
+        
+        y_list[t] = y_t
+    end
+    y = vcat(y_list...)
+
+    return y
+end
+
+function jacobian_operator(plan1, r, r2_d, s0_d, dcf_d, combine_coils, c_d, 
+    timepoints, total_timepoints, time_since_last_rf, kx_d, ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
+    
+    # Initialize sum of gradients (nx,ny,nz,nchan) prior to summing of gradients over coils
+    g_s0_total = zeros(ComplexF64, size(c_d))
+    g_r2_total = zeros(ComplexF64, size(c_d))
+
+    start_idx = 1
+    for t in 1:timepoints
+        @info "Jacobian Operator t=$t"
+
+        t_start = (t-1) * timepoint_window_size + 1
+        t_end = min(t * timepoint_window_size, total_timepoints)
+        approx_t = round(Int, (t_start + t_end) / 2)
+
+        t_ms = time_since_last_rf[approx_t]
+
+        # Get the boolean mask for timepoint t (assume selection is 2D with one row per timepoint)
+        sel = selection[t_start:t_end, :]
+        npoints = sum(sel)
+
+        # Extract the segment of the residual corresponding to timepoint t.
+        r_t = r[start_idx:start_idx + npoints - 1, :]
+
+        dcf_t = use_dcf ? view(dcf_d, start_idx:start_idx+npoints-1) : 1.0
+
+        kx_d_t = collect(kx_d[t_start:t_end, :][sel])
+        ky_d_t = collect(ky_d[t_start:t_end, :][sel])
+
+        finufft_setpts!(plan1, kx_d_t, ky_d_t)
+
+        finufft_exec!(plan1, r_t .* dcf_t, g_r_t)
+
+        if combine_coils
+            g_r_result_t = reshape(g_r_t, size(c_d)) .* conj(c_d);
+        else
+            g_r_result_t = reshape(g_r_t, size(r2_d))
+        end
+
+        conj_s0 = conj.(s0_d)
+        exp_term = exp.(- t_ms .* r2_d)
+
+        g_r2_total .+= (- conj_s0 .* t_ms .* exp_term)
+        g_s0_total .+= exp_term .* g_r_result_t
+
+        #TODO: Maybe put the sum of gradients in for loop instead of at end
+
+        start_idx += npoints
+    end
+
+    if combine_coils
+        g_r2_total = dropdims(sum(g_r2_total, dims=4), dims=4)
+        g_s0_total = dropdims(sum(g_s0_total, dims=4), dims=4)
+    end
+
+    return real.(g_r2_total), g_s0_total
+end
+
