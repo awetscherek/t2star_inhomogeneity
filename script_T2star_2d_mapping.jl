@@ -58,20 +58,29 @@ if combine_coils
 end
 #######################################################################################################################
 
+#Precision of approximation of timepoints
+# 1 - No approximation (NUFFT for every time point)
+# nkx (536) - Echo time of each assumed to be the timepoint
+timepoint_window_size = 536
+
 # full-scale reconstruction (can loop over echoes):
 
 t2_star_mapping = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 
-t2_star_mapping .= recon_2d_t2star_map(config, 
+
+t2_star_mapping, s0 = recon_2d_t2star_map(config, 
 @view(kx[:, :, :, :]),
 @view(ky[:, :, :, :]),
 @view(raw[:, :, :, :, :]),
 time_since_last_rf,
 [nx, ny],
 combine_coils = combine_coils,
-niter=100,
+niter=10,
+timepoint_window_size=timepoint_window_size,
 sens = combine_coils ? sens : nothing,
 use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
 );
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/t2star_mapping_2d_recon", ComplexF32.(t2_star_mapping))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/t2star_mapping_2d_recon_$timepoint_window_size", ComplexF32.(t2_star_mapping))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/s0_2d_recon_$timepoint_window_size", ComplexF32.(s0))

@@ -30,39 +30,43 @@ end
 println("data loaded")
 
 # Function to model the exponential decay
-function exp_decay(t, S)
-    S0, T2_star = S
-    return S0 .* exp.(-t ./ T2_star)  # Ensure element-wise operations
+function exp_decay(t, p)
+    S0_real, S0_imag, T2_star = p
+    S0 = complex(S0_real, S0_imag)
+    signal = S0 .* exp.(-t ./ T2_star)  # Return only real part for real-valued residuals
+    return vcat(real(signal), imag(signal))
 end
 
 # Function to fit T2* value for a given voxel (x, y, z)
 function fit_t2_star(voxel_data, echo_times)
-    # if maximum(voxel_data) < 1e-5  # Avoid fitting on very low signal
-    #     return NaN
-    # end
 
-    # Initial guess: S0 = max signal, T2* = 50ms
-    init_guess = [voxel_data[1], 50.0]
+    ydata = vcat(real(voxel_data), imag(voxel_data))
 
-    # Curve fitting
-    fit = curve_fit(exp_decay, echo_times, voxel_data, init_guess,lower=[0.0, 0.0], upper=[voxel_data[1], 1000.0])
-    # fit = curve_fit(exp_decay, echo_times, voxel_data, init_guess)
+    # Use real and imag parts for initial guess
+    init_guess = [0, 0, 50.0]
+    lower = [-Inf, -Inf, 1.0]
+    upper = [Inf, Inf, 1000.0]
 
-    return fit.param  # Extract fitted T2* value
+    # Fit using only real part of the voxel data
+    fit = curve_fit(exp_decay, echo_times, ydata, init_guess; lower=lower, upper=upper)
+
+    S0_real, S0_imag, T2_star = fit.param
+    S0 = complex(S0_real, S0_imag)
+    return S0, T2_star
 end
 
 # Initialize an array to store T2* values
-t2_star_map =  combine_coils ? Array{Float32}(undef, nx, ny, nz) : Array{Float32}(undef, nx, ny, nz, config["nchan"]);
-s0_map =  combine_coils ? Array{Float32}(undef, nx, ny, nz) : Array{Float32}(undef, nx, ny, nz, config["nchan"]);
+t2_star_map =  combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+s0_map =  combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
-abs_x = abs.(x)
+# abs_x = abs.(x)
 
 # Loop over each voxel and fit the T2* value
 if combine_coils
     for ix in 1:nx
         for iy in 1:ny
             for iz in 1:nz
-                voxel_data = abs_x[ix, iy, iz, :]
+                voxel_data = x[ix, iy, iz, :]
                 s0_map[ix,iy,iz], t2_star_map[ix, iy, iz] = fit_t2_star(voxel_data, echo_times)
             end
         end
@@ -82,11 +86,11 @@ else
 end
 
 if combine_coils
-    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/t2star_2d", ComplexF32.(t2_star_map))
-    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/s0_2d", ComplexF32.(s0_map))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/intermediate_image_t2star_2d", ComplexF32.(t2_star_map))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/intermediate_image_s0_2d", ComplexF32.(s0_map))
 else
-    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/t2star_2d_no_combine_coils", ComplexF32.(t2_star_map))
-    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/s0_2d_no_combine_coils", ComplexF32.(s0_map))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/intermediate_image_t2star_2d_no_combine_coils", ComplexF32.(t2_star_map))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/intermediate_image_s0_2d_no_combine_coils", ComplexF32.(s0_map))
 end
 
 function visualize_slices(t2_star_map)

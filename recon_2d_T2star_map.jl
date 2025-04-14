@@ -8,7 +8,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     niter = use_dcf ? 10 : 100, # number of gradient descent iterations
     max_ls = 100,               # number of line search iterations
     alpha0 = 1.0,               # initial step size for line search
-    beta = 0.1)                 # factor to decrease step size
+    timepoint_window_size=536,
+    beta = 0.05)                 # factor to decrease step size
 
     @assert !combine_coils || !isnothing(sens) "if we want to combine coils we need coil sensitivities ..."
 
@@ -19,6 +20,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     nz = size(raw, 4) # this assumes only data from one echo is passed to the function, but several slices, so raw should be a 4D array
 
     nkx, _, nky,_ = size(kx)
+
+    @assert timepoint_window_size <= nkx "The timepoint window size cannot be larger than nkx"
 
     # this preconditioner could help speed up convergence:
     dcf = use_dcf ? abs.(-size(ky, 1)/2+0.5:size(ky, 1)/2) : 1.0
@@ -47,13 +50,6 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     y_d = reshape(ComplexF64.(permutedims(raw,[3 1 5 4 2])) .* sqrt.(dcf), config["necho"] * nkx, :, nz * config["nchan"])[selection, :];
 
     dcf_d = use_dcf ? reshape(repeat(sqrt.(dcf), outer = (1, size(ky, 2))), :)[selection] : 1.0;
-    
-    #Precision of approximation of timepoints
-    # 1 - No approximation (NUFFT for every time point)
-    # nkx (536) - Echo time of each assumed to be the timepoint
-    timepoint_window_size = 536
-
-    @assert timepoint_window_size <= nkx "The timepoint window size cannot be larger than nkx"
 
     total_timepoints = config["necho"] * nkx
     timepoints = ceil(Int, total_timepoints / timepoint_window_size)
@@ -64,11 +60,11 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
     #Benchmark of forward operator using  R2 and S0 mappings from Intermediate Generation
     # if combine_coils        
-    #     r2_d = Float64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/t2star_2d")))
-    #     s0_d = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/s0_2d"))
+    #     r2_d = Float64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/intermediate_image_t2star_2d")))
+    #     s0_d = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/intermediate_image_s0_2d"))
     # else
-    #     r2_d = Float64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/t2star_2d_no_combine_coils")))
-    #     s0_d = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/s0_2d_no_combine_coils"))
+    #     r2_d = Float64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/intermediate_image_t2star_2d_no_combine_coils")))
+    #     s0_d = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/intermediate_image_s0_2d_no_combine_coils"))
     # end
 
     time_since_last_rf = vec(time_since_last_rf)
@@ -136,7 +132,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     finufft_destroy!(plan2)
 
     # collect results from GPU & return: 
-    1 ./ r2_d
+    1 ./ r2_d, s0_d
 end
 
 function forward_operator(plan2, r2_d, s0_d, timepoints, total_timepoints, kx_d, ky_d,
@@ -156,7 +152,6 @@ function forward_operator(plan2, r2_d, s0_d, timepoints, total_timepoints, kx_d,
 
         finufft_setpts!(plan2, kx_d_t, ky_d_t)
 
-        # calculate the residual
         w_d_t = s0_d .* exp.(- t_ms .* r2_d)
 
         y_t = finufft_exec(plan2, w_d_t .* c_d)
@@ -165,8 +160,6 @@ function forward_operator(plan2, r2_d, s0_d, timepoints, total_timepoints, kx_d,
     end
     y = vcat(y_list...)
 
-    # z = zeros(ComplexF64, 1141624,256)
-    # return z
     return y
 end
 
