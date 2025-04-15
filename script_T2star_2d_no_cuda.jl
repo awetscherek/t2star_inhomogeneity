@@ -73,4 +73,6 @@ for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
     );
 end
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/x_2d_no_combine_coils", ComplexF32.(x))
+comb = combine_coils ? "" : "_no_combine_coils"
+
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/x_2d$comb", ComplexF32.(x))

@@ -66,10 +66,10 @@ timepoint_window_size = 536
 # full-scale reconstruction (can loop over echoes):
 
 t2_star_mapping = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
-s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
+b0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
-
-t2_star_mapping, s0 = recon_2d_t2star_map(config, 
+t2_star_mapping, s0, b0 = recon_2d_t2star_map(config, 
 @view(kx[:, :, :, :]),
 @view(ky[:, :, :, :]),
 @view(raw[:, :, :, :, :]),
@@ -84,3 +84,4 @@ use_dcf = false, # for some reason this seems to introduce artifacts into the im
 
 ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/t2star_mapping_2d_recon_$timepoint_window_size", ComplexF32.(t2_star_mapping))
 ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/s0_2d_recon_$timepoint_window_size", ComplexF32.(s0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/b0_2d_recon_$timepoint_window_size", ComplexF32.(b0))
