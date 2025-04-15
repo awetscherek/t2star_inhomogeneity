@@ -86,11 +86,11 @@ else
 end
 
 if combine_coils
-    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/intermediate_image_t2star_2d", ComplexF32.(t2_star_map))
-    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/intermediate_image_s0_2d", ComplexF32.(s0_map))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Intermediate/intermediate_image_t2star_2d", ComplexF32.(t2_star_map))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Intermediate/intermediate_image_s0_2d", ComplexF32.(s0_map))
 else
-    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/intermediate_image_t2star_2d_no_combine_coils", ComplexF32.(t2_star_map))
-    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/intermediate_image_s0_2d_no_combine_coils", ComplexF32.(s0_map))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Intermediate/intermediate_image_t2star_2d_no_combine_coils", ComplexF32.(t2_star_map))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Intermediate/intermediate_image_s0_2d_no_combine_coils", ComplexF32.(s0_map))
 end
 
 function visualize_slices(t2_star_map)

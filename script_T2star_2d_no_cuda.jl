@@ -75,4 +75,4 @@ end
 
 comb = combine_coils ? "" : "_no_combine_coils"
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/x_2d$comb", ComplexF32.(x))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Demo/x_2d$comb", ComplexF32.(x))

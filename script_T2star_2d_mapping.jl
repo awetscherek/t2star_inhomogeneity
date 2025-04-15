@@ -82,6 +82,8 @@ sens = combine_coils ? sens : nothing,
 use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
 );
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/t2star_mapping_2d_recon_$timepoint_window_size", ComplexF32.(t2_star_mapping))
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/s0_2d_recon_$timepoint_window_size", ComplexF32.(s0))
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/b0_2d_recon_$timepoint_window_size", ComplexF32.(b0))
+comb = combine_coils ? "" : "_no_combine_coils"
+
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/T2/2d/t2star_mapping_$timepoint_window_size$comb", ComplexF32.(t2_star_mapping))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/T2/2d/s0_$timepoint_window_size$comb", ComplexF32.(s0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/T2/2d/b0_$timepoint_window_size$comb", ComplexF32.(b0))

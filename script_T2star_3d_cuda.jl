@@ -58,4 +58,4 @@ for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
 
 end
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/x_3d", ComplexF32.(x))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Demo/x_3d", ComplexF32.(x))
