@@ -1,5 +1,5 @@
 includet("load_demo_data.jl")
-includet("recon_2d_T2star_map.jl")
+includet("forward_operator_intermediate_image_test.jl")
 includet("demo_recon_2d.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/Data/raw_000.data", use_float32=true, use_nom_kz=true);
@@ -63,29 +63,14 @@ end
 # nkx (536) - Echo time of each assumed to be the timepoint
 timepoint_window_size = 536
 
-# full-scale reconstruction (can loop over echoes):
-
-t2_star_mapping = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
-s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
-b0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
-
-t2_star_mapping, s0, b0 = recon_2d_t2star_map(config, 
+forward_operator_intermediate_image_test(config, 
 @view(kx[:, :, :, :]),
 @view(ky[:, :, :, :]),
 @view(raw[:, :, :, :, :]),
 time_since_last_rf,
 [nx, ny],
 combine_coils = combine_coils,
-niter=10,
 timepoint_window_size=timepoint_window_size,
 sens = combine_coils ? sens : nothing,
-use_dcf = true, # for some reason this seems to introduce artifacts into the image ...
+use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
 );
-
-comb = combine_coils ? "" : "_no_combine_coils"
-
-dcf = use_dcf ? "_dcf" : ""
-
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/T2/2d/t2_$timepoint_window_size$comb$dcf", ComplexF32.(t2_star_mapping))
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/T2/2d/s0_$timepoint_window_size$comb$dcf", ComplexF32.(s0))
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/T2/2d/b0_$timepoint_window_size$comb$dcf", ComplexF32.(b0))

@@ -1,6 +1,6 @@
 using FINUFFT
 
-function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # keyword arguments: 
+function forward_op_synthetic_data_test(config, kx, ky, time_since_last_rf, dims; # keyword arguments: 
     combine_coils = false,      # whether to use coil sensitivities
     sens = nothing,             # coil sensitivities ...
     use_dcf = false,            # whether to use pre-conditioner
@@ -16,8 +16,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     #kx and ky should be of shape
     #(269,8,536)
     # nky => necho => nkx
-    nx, ny = dims;
-    nz = size(raw, 4) # this assumes only data from one echo is passed to the function, but several slices, so raw should be a 4D array
+    nx, ny, nz = dims;
 
     nkx, _, nky,_ = size(kx)
 
@@ -52,35 +51,32 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     e_d_tmp = Array{ComplexF64}(undef, size(e_d));
     s0_d_tmp = Array{ComplexF64}(undef, size(s0_d));
 
-    # this is the raw data from which we want to reconstruct the coil images
-    #(timepoints, ky, nz * nchan)
+    #Test of forward operator using synthetic data
+    e_d .= ComplexF64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Data/Synthetic/t2_50")))
+    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Data/Synthetic/s0_1"))
 
-    y_d = reshape(ComplexF64.(permutedims(raw,[3 1 5 4 2])) .* sqrt.(dcf), config["necho"] * nkx, :, nz * config["nchan"])[selection, :];
-
-    dcf_d = use_dcf ? reshape(repeat(sqrt.(dcf), outer = (1, size(ky, 2))), :)[selection] : 1.0;
+    # plan NUFFTs:
+    plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
+    plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
 
     total_timepoints = config["necho"] * nkx
     timepoints = ceil(Int, total_timepoints / timepoint_window_size)
 
-    # Initial value of exponent(e) and S0:
-
-    # Take initial value of S0 to be reconstruction
-    # s0_d .= 0.0;
-    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/x_2d"))
-
-
-    e_d .= (1/50.0 - 0.0im);
-
     time_since_last_rf = vec(time_since_last_rf)
+
+    # Generate raw data from synthetic T2* and S0 with forward operator, and attempt to reconstruct
+    y_d = forward_operator(plan2, e_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+
+    dcf_d = use_dcf ? reshape(repeat(sqrt.(dcf), outer = (1, size(ky, 2))), :)[selection] : 1.0;
+
+    # Initial guess of exponent(e) and S0:
+    e_d .= (1/50.0 - 0.0im);
+    s0_d .= 0.0;
 
     #intermediate result, required for gradient at each time point
     g_r_t = Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
     g_e = combine_coils ? Array{ComplexF64}(undef, size(e_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
     g_s0 = combine_coils ? Array{ComplexF64}(undef, size(s0_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
-
-    # plan NUFFTs:
-    plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
-    plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
 
     r = Array{ComplexF64}(undef,size(y_d));
     r .= forward_operator(plan2, e_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)

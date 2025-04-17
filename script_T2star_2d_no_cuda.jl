@@ -1,7 +1,7 @@
 includet("load_demo_data.jl")
 includet("demo_recon_2d.jl")
 
-config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/raw_000.data", use_float32=true, use_nom_kz=true);
+config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
 @assert size(noise) ==     ( 19832 ,   8)   # noise measurement could be used for pre-whitening
 @assert size(raw)   ==     (  536  ,   8    ,   8    ,  32  , 269 )
@@ -43,7 +43,7 @@ if combine_coils
     );
 
     #using ImageView # alternative to arrShow, but doesn't work with complex and CuArray data
-    #imshow(abs.(x))
+    imshow(abs.(x))
 
     ReadWriteCFL.writecfl("lowres_img", ComplexF32.(x))
 
@@ -69,10 +69,13 @@ for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
     [nx, ny],
     combine_coils = combine_coils,
     sens = combine_coils ? sens : nothing,
-    use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
+    use_dcf = true, # for some reason this seems to introduce artifacts into the image ...
     );
 end
 
 comb = combine_coils ? "" : "_no_combine_coils"
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Demo/x_2d$comb", ComplexF32.(x))
+dcf = use_dcf ? "_dcf" : ""
+
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Recon/x_2d$comb$dcf", ComplexF32.(x))
+  
