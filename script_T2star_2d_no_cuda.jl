@@ -43,7 +43,7 @@ if combine_coils
     );
 
     #using ImageView # alternative to arrShow, but doesn't work with complex and CuArray data
-    imshow(abs.(x))
+    # imshow(abs.(x))
 
     ReadWriteCFL.writecfl("lowres_img", ComplexF32.(x))
 
@@ -69,7 +69,7 @@ for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
     [nx, ny],
     combine_coils = combine_coils,
     sens = combine_coils ? sens : nothing,
-    use_dcf = true, # for some reason this seems to introduce artifacts into the image ...
+    use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
     );
 end
 

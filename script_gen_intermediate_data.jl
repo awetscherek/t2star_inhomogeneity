@@ -19,13 +19,8 @@ echo_times = time_since_last_rf[268,:,1,1]
 
 println("Echo times: ", echo_times)
 
-if combine_coils
-    #Shape (nx, ny, nz, necho)
-    x = ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/x_2d")
-else
-    #Shape (nx, ny, nz, nchan, necho)
-    x = ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/x_2d_no_combine_coils")
-end
+comb = combine_coils ? "" : "_no_combine_coils"
+x = ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/x_2d$comb")
 
 println("data loaded")
 

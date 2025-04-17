@@ -27,8 +27,6 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     dcf = use_dcf ? abs.(-size(ky, 1)/2+0.5:size(ky, 1)/2) : 1.0
     dcf = dcf ./ maximum(dcf)
 
-    gamma = 2 * π * 42.576e6
-
     c_d = combine_coils ? sens : [1.0]; # this shouldn't make a copy of sens
 
     # use only raw data from 1st echo (most signal), normalize non-uniform frequency on pixel size (FOV/n)
@@ -62,14 +60,27 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     total_timepoints = config["necho"] * nkx
     timepoints = ceil(Int, total_timepoints / timepoint_window_size)
 
+    gamma = 2 * π * 42.576e6
+
     # Initial value of exponent(e) and S0:
 
     # Take initial value of S0 to be reconstruction
     # s0_d .= 0.0;
-    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/x_2d"))
+    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/x_2d"));
 
+    r2 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+    b0_prediction = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 
-    e_d .= (1/50.0 - 0.0im);
+    #im = im{e} = - gamma .* \delta B_0
+    im = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+
+    r2 .= 1/50.0
+    b0_prediction .= 0.0
+    # b0_prediction .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/B0/b0_prediction"))
+
+    im = - gamma .* b0_prediction
+
+    e_d .= complex.(r2, im)
 
     time_since_last_rf = vec(time_since_last_rf)
 
