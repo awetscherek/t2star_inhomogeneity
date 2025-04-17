@@ -9,7 +9,7 @@ function forward_op_synthetic_data_test(config, kx, ky, time_since_last_rf, dims
     max_ls = 100,               # number of line search iterations
     alpha0 = 1.0,               # initial step size for line search
     timepoint_window_size=536,
-    beta = 0.05)                 # factor to decrease step size
+    beta = 0.6)                 # factor to decrease step size
 
     @assert !combine_coils || !isnothing(sens) "if we want to combine coils we need coil sensitivities ..."
 

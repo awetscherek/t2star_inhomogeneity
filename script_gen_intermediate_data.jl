@@ -20,7 +20,7 @@ echo_times = time_since_last_rf[268,:,1,1]
 println("Echo times: ", echo_times)
 
 comb = combine_coils ? "" : "_no_combine_coils"
-x = ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/x_2d$comb")
+x = ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/2d/x$comb")
 
 println("data loaded")
 

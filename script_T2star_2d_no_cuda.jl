@@ -77,5 +77,5 @@ comb = combine_coils ? "" : "_no_combine_coils"
 
 dcf = use_dcf ? "_dcf" : ""
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Recon/x_2d$comb$dcf", ComplexF32.(x))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Recon/2d/x$comb$dcf", ComplexF32.(x))
   

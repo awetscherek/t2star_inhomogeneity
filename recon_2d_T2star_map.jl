@@ -9,7 +9,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     max_ls = 100,               # number of line search iterations
     alpha0 = 1.0,               # initial step size for line search
     timepoint_window_size=536,
-    beta = 0.05)                 # factor to decrease step size
+    beta = 0.6)                 # factor to decrease step size
 
     @assert !combine_coils || !isnothing(sens) "if we want to combine coils we need coil sensitivities ..."
 
@@ -65,8 +65,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     # Initial value of exponent(e) and S0:
 
     # Take initial value of S0 to be reconstruction
-    # s0_d .= 0.0;
-    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/x_2d"));
+    s0_d .= 0.0;
+    # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/2d/x"));
 
     r2 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
     b0_prediction = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
