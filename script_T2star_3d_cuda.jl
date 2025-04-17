@@ -16,6 +16,7 @@ nz = 32
 
 # low resolution reconstruction of echo 1 for coil sensitivity estimation:
 combine_coils = false
+use_dcf = false
 if combine_coils
     x = demo_recon_3d(config, 
         @view(kx[:, 1, :, :]),
@@ -53,7 +54,7 @@ for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
         [nx, ny, nz],
         combine_coils = combine_coils,
         sens = combine_coils ? sens : nothing,
-        use_dcf = true, # for some reason this seems to introduce artifacts into the image, so it might be required to add some regularisation ...
+        use_dcf = use_dcf, # for some reason this seems to introduce artifacts into the image, so it might be required to add some regularisation ...
     );
 
 end

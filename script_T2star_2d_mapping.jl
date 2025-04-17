@@ -35,6 +35,7 @@ nz = 32 #number of slices
 
 # low resolution reconstruction of echo 1 for coil sensitivity estimation:
 combine_coils = true
+use_dcf = false
 if combine_coils
     x = demo_recon_2d(config, 
         @view(kx[:, 1, :]),
@@ -79,7 +80,7 @@ combine_coils = combine_coils,
 niter=10,
 timepoint_window_size=timepoint_window_size,
 sens = combine_coils ? sens : nothing,
-use_dcf = true, # for some reason this seems to introduce artifacts into the image ...
+use_dcf = use_dcf, # for some reason this seems to introduce artifacts into the image ...
 );
 
 comb = combine_coils ? "" : "_no_combine_coils"
