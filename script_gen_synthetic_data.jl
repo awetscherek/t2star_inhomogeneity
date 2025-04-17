@@ -19,8 +19,8 @@ function gen_synthetic_data()
         T2star[:, :, z] .= circle_mask .* 50.0
     end
 
-    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Data/Synthetic/t2_50", ComplexF32.(T2star))
-    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Data/Synthetic/s0_1", ComplexF32.(S0))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Data/Synthetic/2d/t2_50", ComplexF32.(T2star))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Data/Synthetic/2d/s0_1", ComplexF32.(S0))
 end
 
 gen_synthetic_data()

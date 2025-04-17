@@ -35,7 +35,7 @@ nz = 32 #number of slices
 
 # low resolution reconstruction of echo 1 for coil sensitivity estimation:
 combine_coils = true
-use_dcf = false
+use_dcf = true
 if combine_coils
     x = demo_recon_2d(config, 
         @view(kx[:, 1, :]),

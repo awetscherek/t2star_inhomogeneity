@@ -76,6 +76,6 @@ use_dcf = false, # for some reason this seems to introduce artifacts into the im
 
 comb = combine_coils ? "" : "_no_combine_coils"
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Synthetic/t2_$timepoint_window_size$comb", ComplexF32.(t2_star_mapping))
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Synthetic/s0_$timepoint_window_size$comb", ComplexF32.(s0))
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Synthetic/b0_$timepoint_window_size$comb", ComplexF32.(b0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Synthetic/2d/t2_$timepoint_window_size$comb", ComplexF32.(t2_star_mapping))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Synthetic/2d/s0_$timepoint_window_size$comb", ComplexF32.(s0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Synthetic/2d/b0_$timepoint_window_size$comb", ComplexF32.(b0))

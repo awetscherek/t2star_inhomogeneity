@@ -53,9 +53,9 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     # this is the raw data from which we want to reconstruct the coil images
     #(timepoints, ky, nz * nchan)
 
-    y_d = reshape(ComplexF64.(permutedims(raw,[3 1 5 4 2])) .* sqrt.(dcf), config["necho"] * nkx, :, nz * config["nchan"])[selection, :];
+    y_d = reshape(ComplexF64.(permutedims(raw,[3 1 5 4 2])) .* reshape(sqrt.(dcf), 1, size(dcf,1),1,1,1), config["necho"] * nkx, :, nz * config["nchan"])[selection, :];
 
-    dcf_d = use_dcf ? reshape(repeat(sqrt.(dcf), outer = (1, size(ky, 2))), :)[selection] : 1.0;
+    dcf_d = use_dcf ? repeat(sqrt.(dcf), outer = (size(ky, 2), size(ky, 3)))[selection] : 1.0;
 
     total_timepoints = config["necho"] * nkx
     timepoints = ceil(Int, total_timepoints / timepoint_window_size)
@@ -76,7 +76,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
     r2 .= 1/50.0
     b0_prediction .= 0.0
-    # b0_prediction .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/B0/b0_prediction"))
+    # b0_prediction .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/B0/2d/b0_prediction"))
 
     im = - gamma .* b0_prediction
 

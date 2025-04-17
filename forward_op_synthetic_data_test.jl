@@ -52,8 +52,8 @@ function forward_op_synthetic_data_test(config, kx, ky, time_since_last_rf, dims
     s0_d_tmp = Array{ComplexF64}(undef, size(s0_d));
 
     #Test of forward operator using synthetic data
-    e_d .= ComplexF64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Data/Synthetic/t2_50")))
-    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Data/Synthetic/s0_1"))
+    e_d .= ComplexF64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Data/Synthetic/2d/t2_50")))
+    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Data/Synthetic/2d/s0_1"))
 
     # plan NUFFTs:
     plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
