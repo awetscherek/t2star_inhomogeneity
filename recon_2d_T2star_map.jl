@@ -53,7 +53,9 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     # this is the raw data from which we want to reconstruct the coil images
     #(timepoints, ky, nz * nchan)
 
-    y_d = reshape(ComplexF64.(permutedims(raw,[3 1 5 4 2])) .* reshape(sqrt.(dcf), 1, size(dcf,1),1,1,1), config["necho"] * nkx, :, nz * config["nchan"])[selection, :];
+    dcf_y = use_dcf ? reshape(sqrt.(dcf), 1, size(dcf,1),1,1,1) : dcf
+
+    y_d = reshape(ComplexF64.(permutedims(raw,[3 1 5 4 2])) .* dcf_y, config["necho"] * nkx, :, nz * config["nchan"])[selection, :];
 
     dcf_d = use_dcf ? repeat(sqrt.(dcf), outer = (size(ky, 2), size(ky, 3)))[selection] : 1.0;
 
@@ -65,8 +67,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     # Initial value of exponent(e) and S0:
 
     # Take initial value of S0 to be reconstruction
-    s0_d .= 0.0;
-    # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/2d/x"));
+    # s0_d .= 0.0;
+    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/2d/x")[:,:,:,1]);
 
     r2 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
     b0_prediction = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);

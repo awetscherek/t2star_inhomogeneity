@@ -77,7 +77,7 @@ t2_star_mapping, s0, b0 = recon_2d_t2star_map(config,
 time_since_last_rf,
 [nx, ny],
 combine_coils = combine_coils,
-niter=10,
+niter=100,
 timepoint_window_size=timepoint_window_size,
 sens = combine_coils ? sens : nothing,
 use_dcf = use_dcf, # for some reason this seems to introduce artifacts into the image ...
