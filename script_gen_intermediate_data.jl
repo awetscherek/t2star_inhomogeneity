@@ -38,7 +38,7 @@ function fit_t2_star(voxel_data, echo_times)
     ydata = vcat(real(voxel_data), imag(voxel_data))
 
     # Use real and imag parts for initial guess
-    init_guess = [0, 0, 50.0]
+    init_guess = [real(voxel_data[1]), imag(voxel_data[1]), 50.0]
     lower = [-Inf, -Inf, 1.0]
     upper = [Inf, Inf, 1000.0]
 
