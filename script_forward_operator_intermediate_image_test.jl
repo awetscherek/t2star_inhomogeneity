@@ -1,4 +1,5 @@
 includet("load_demo_data.jl")
+includet("forward_operator_intermediate_image_test.jl")
 includet("demo_recon_2d.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/Data/raw_000.data", use_float32=true, use_nom_kz=true);
@@ -7,8 +8,8 @@ config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Domi
 @assert size(raw)   ==     (  536  ,   8    ,   8    ,  32  , 269 )
 # acquisition order: inner => nkx => nchan => necho => nkz => nky => outer
 
-using FFTW
 using ReadWriteCFL
+using FFTW
 # perform FFT across slices:
 I = sortperm(-kz[1, 1, :, 1]); # looks like we need to flip the sign to make this work with standard FFT implementations ... we use ifft to account for this minus ...
 v = kz[1, 1, I, 1];
@@ -34,7 +35,6 @@ nz = 32 #number of slices
 
 # low resolution reconstruction of echo 1 for coil sensitivity estimation:
 combine_coils = true
-use_dcf = true
 if combine_coils
     x = demo_recon_2d(config, 
         @view(kx[:, 1, :]),
@@ -44,7 +44,7 @@ if combine_coils
     );
 
     #using ImageView # alternative to arrShow, but doesn't work with complex and CuArray data
-    # imshow(abs.(x))
+    #imshow(abs.(x))
 
     ReadWriteCFL.writecfl("lowres_img", ComplexF32.(x))
 
@@ -58,25 +58,19 @@ if combine_coils
 end
 #######################################################################################################################
 
-# full-scale reconstruction (can loop over echoes):
+#Precision of approximation of timepoints
+# 1 - No approximation (NUFFT for every time point)
+# nkx (536) - Echo time of each assumed to be the timepoint
+timepoint_window_size = 536
 
-x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"], config["necho"]);
-
-for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
-    xe .= demo_recon_2d(config, 
-    @view(kx[:, ie, :, :]),
-    @view(ky[:, ie, :, :]),
-    @view(raw[:, :, ie, :, :]),
-    [nx, ny],
-    combine_coils = combine_coils,
-    sens = combine_coils ? sens : nothing,
-    use_dcf = use_dcf, # for some reason this seems to introduce artifacts into the image ...
-    );
-end
-
-comb = combine_coils ? "" : "_no_combine_coils"
-
-dcf = use_dcf ? "_dcf" : ""
-
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Recon/2d/x$comb$dcf", ComplexF32.(x))
-  
+forward_operator_intermediate_image_test(config, 
+@view(kx[:, :, :, :]),
+@view(ky[:, :, :, :]),
+@view(raw[:, :, :, :, :]),
+time_since_last_rf,
+[nx, ny],
+combine_coils = combine_coils,
+timepoint_window_size=timepoint_window_size,
+sens = combine_coils ? sens : nothing,
+use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
+);

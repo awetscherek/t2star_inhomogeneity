@@ -2,7 +2,7 @@ includet("load_demo_data.jl")
 includet("recon_2d_T2star_map.jl")
 includet("demo_recon_2d.jl")
 
-config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/raw_000.data", use_float32=true, use_nom_kz=true);
+config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
 @assert size(noise) ==     ( 19832 ,   8)   # noise measurement could be used for pre-whitening
 @assert size(raw)   ==     (  536  ,   8    ,   8    ,  32  , 269 )
@@ -35,6 +35,7 @@ nz = 32 #number of slices
 
 # low resolution reconstruction of echo 1 for coil sensitivity estimation:
 combine_coils = true
+use_dcf = true
 if combine_coils
     x = demo_recon_2d(config, 
         @view(kx[:, 1, :]),
@@ -66,21 +67,25 @@ timepoint_window_size = 536
 # full-scale reconstruction (can loop over echoes):
 
 t2_star_mapping = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
-s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
+b0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
-
-t2_star_mapping, s0 = recon_2d_t2star_map(config, 
+t2_star_mapping, s0, b0 = recon_2d_t2star_map(config, 
 @view(kx[:, :, :, :]),
 @view(ky[:, :, :, :]),
 @view(raw[:, :, :, :, :]),
 time_since_last_rf,
 [nx, ny],
 combine_coils = combine_coils,
-niter=10,
 timepoint_window_size=timepoint_window_size,
 sens = combine_coils ? sens : nothing,
-use_dcf = false, # for some reason this seems to introduce artifacts into the image ...
+use_dcf = use_dcf, # for some reason this seems to introduce artifacts into the image ...
 );
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/t2star_mapping_2d_recon_$timepoint_window_size", ComplexF32.(t2_star_mapping))
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/s0_2d_recon_$timepoint_window_size", ComplexF32.(s0))
+comb = combine_coils ? "" : "_no_combine_coils"
+
+dcf = use_dcf ? "_dcf" : ""
+
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/T2/2d/t2_$timepoint_window_size$comb$dcf", ComplexF32.(t2_star_mapping))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/T2/2d/s0_$timepoint_window_size$comb$dcf", ComplexF32.(s0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/T2/2d/b0_$timepoint_window_size$comb$dcf", ComplexF32.(b0))
