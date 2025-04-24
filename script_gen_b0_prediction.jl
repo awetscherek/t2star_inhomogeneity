@@ -3,6 +3,7 @@ includet("load_demo_data.jl")
 using ReadWriteCFL
 using DSP
 using Polynomials
+using Statistics
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
@@ -31,6 +32,9 @@ comb = combine_coils ? "" : "_no_combine_coils"
 dcf = use_dcf ? "_dcf" : ""
 x .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x$comb$dcf")
 
+mag = mean(abs.(x), dims=4)   # → size (nx,ny,nz)
+mask = dropdims(mag .> 1e-7, dims=4)   # boolean mask of in-object voxels
+
 phases = permutedims(angle.(x), [4 1 2 3])
 
 #Phases size - (echo, nx, ny, nz)
@@ -50,6 +54,12 @@ a = Vector{Float64}(undef, N)
 b = Vector{Float64}(undef, N)
 
 for i in 1:N
+    if !mask[i]
+        a[i] = 0.0
+        b[i] = 0.0
+        continue
+    end
+
     p = fit(echo_times, @view(unwrapped[:,i]), 1)
     c = coeffs(p)
 
