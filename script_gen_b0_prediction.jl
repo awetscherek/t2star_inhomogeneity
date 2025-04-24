@@ -4,7 +4,7 @@ using ReadWriteCFL
 using DSP
 using Polynomials
 
-config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/Data/raw_000.data", use_float32=true, use_nom_kz=true);
+config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
 @assert size(noise) ==     ( 19832 ,   8)   # noise measurement could be used for pre-whitening
 @assert size(raw)   ==     (  536  ,   8    ,   8    ,  32  , 269 )
@@ -19,31 +19,51 @@ nz = 32 #number of slices
 
 x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"], config["necho"]);
 
+γ = 2 * π * 42.576e6
 
-comb = combine_coils ? "" : "_no_combine_coils"
-dcf = use_dcf ? "_dcf" : ""
+time_since_last_rf = Float64.(time_since_last_rf)
 
-time_since_last_rf = Float64.(vec(time_since_last_rf))
-
-echo_times = time_since_last_rf[268,:,1,1]
+echo_times = vec(time_since_last_rf[268,:,1,1])
 
 println("echo times: $echo_times")
 
-x .= ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/2d/x$comb$dcf")
+comb = combine_coils ? "" : "_no_combine_coils"
+dcf = use_dcf ? "_dcf" : ""
+x .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x$comb$dcf")
 
 phases = permutedims(angle.(x), [4 1 2 3])
 
-println("size of phases")
-println(size(phases))
-
+#Phases size - (echo, nx, ny, nz)
 unwrap!(phases, dims=1)
 
-p = fit(echo_times, phases, 1)
+#Unwrapped size - (echo, nx * ny * nz)
+unwrapped = reshape(phases, size(phases)[1], :)
 
-println("p is")
-println(p)
+N  = nx * ny * nz
 
-b0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"], config["necho"]);
+#phase[S(t)] = y * Δb0 * t + phase[S(0)]
+# Fit to phase[S(t)] = a * t + b
+# Where a = y * Δb0
+# b = phase[S(0)]
 
+a = Vector{Float64}(undef, N)
+b = Vector{Float64}(undef, N)
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/B0/2d/b0_prediction", ComplexF32.(b0))
+for i in 1:N
+    p = fit(echo_times, @view(unwrapped[:,i]), 1)
+    c = coeffs(p)
+
+    # pad with zeros
+    if length(c) < 2
+        resize!(c, 2)
+    end
+
+    a[i] = c[1]
+    b[i] = c[2]
+end
+
+Δb0  = reshape(a ./ γ, nx, ny, nz)
+init_phase = reshape(b, nx, ny, nz)
+
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$comb$dcf", ComplexF32.(Δb0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/B0/2d/init_phase$comb$dcf", ComplexF32.(init_phase))

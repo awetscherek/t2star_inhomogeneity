@@ -37,11 +37,12 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi;
 
     # Considering the phase equation:
-    # S(t) = S(0) .* exp(i .* gamma .* B_0 .* t - (t / T2*) )
-    # Consider the exponent as e = (t / T2*) - i .* gamma .* B_0 .* t
+    # S(t) = S(0) .* exp(i .* γ .* Δb0 .* t - (t / T2*) )
+    # Consider the exponent as e = (t / T2*) - i .* γ .* Δb0 .* t
+    # Such that S(t) = S(0) .* exp(e_d)
     # Real{e} = (1 / T2*)
-    # Im{e} = - gamma .* \delta B_0
-    # such that exp(- t * e) = exp(i .* gamma .* B_0 .* t - (t / T2*) )
+    # Im{e} = - γ .* Δb0
+    # such that exp(- t * e) = exp(i .* γ .* Δb0 .* t - (t / T2*) )
 
     e_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
     s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
@@ -62,25 +63,24 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     total_timepoints = config["necho"] * nkx
     timepoints = ceil(Int, total_timepoints / timepoint_window_size)
 
-    gamma = 2 * π * 42.576e6
+    γ = 2 * π * 42.576e6
 
     # Initial value of exponent(e) and S0:
 
     # Take initial value of S0 to be reconstruction
     # s0_d .= 0.0;
-    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Recon/2d/x")[:,:,:,1]);
+    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x")[:,:,:,1]);
 
     r2 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
-    b0_prediction = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+    Δb0_prediction = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 
-    #im = im{e} = - gamma .* \delta B_0
+    #im = im{e} = - γ .* Δb0
     im = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 
     r2 .= 1/50.0
-    b0_prediction .= 0.0
-    # b0_prediction .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/B0/2d/b0_prediction"))
+    Δb0_prediction .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0"))
 
-    im = - gamma .* b0_prediction
+    im = - γ .* Δb0_prediction
 
     e_d .= complex.(r2, im)
 
@@ -149,12 +149,12 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     finufft_destroy!(plan1)
     finufft_destroy!(plan2)
 
-    # Im{e} = - gamma .* \delta B_0
-    # delta b_0 = - Im{e} ./ gamma
-    b0 = imag(e_d) ./ (- gamma)
+    # Im{e} = - γ .* Δb0
+    # Δb0 = - Im{e} ./ γ
+    Δb0 = imag(e_d) ./ (- γ)
 
     # collect results from GPU & return: 
-    1 ./ real(e_d), s0_d, b0
+    1 ./ real(e_d), s0_d, Δb0
 end
 
 function forward_operator(plan2, e_d, s0_d, timepoints, total_timepoints, kx_d, ky_d,

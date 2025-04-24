@@ -2,7 +2,7 @@ includet("load_demo_data.jl")
 includet("forward_operator_intermediate_image_test.jl")
 includet("demo_recon_2d.jl")
 
-config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/Data/raw_000.data", use_float32=true, use_nom_kz=true);
+config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
 @assert size(noise) ==     ( 19832 ,   8)   # noise measurement could be used for pre-whitening
 @assert size(raw)   ==     (  536  ,   8    ,   8    ,  32  , 269 )

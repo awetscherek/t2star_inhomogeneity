@@ -33,11 +33,11 @@ function forward_operator_intermediate_image_test(config, kx, ky, raw, time_sinc
     selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi;
 
     # Considering the phase equation:
-    # S(t) = S(0) .* exp(i .* gamma .* B_0 .* t - (t / T2*) )
-    # Consider the exponent as e = (t / T2*) - i .* gamma .* B_0 .* t
+    # S(t) = S(0) .* exp(i .* γ .* Δb0 .* t - (t / T2*) )
+    # Consider the exponent as e = (t / T2*) - i .* γ .* Δb0 .* t
     # Real{e} = (1 / T2*)
-    # Im{e} = - gamma .* \delta B_0
-    # such that exp(- t * e) = exp(i .* gamma .* B_0 .* t - (t / T2*) )
+    # Im{e} = - γ .* Δb0
+    # such that exp(- t * e) = exp(i .* γ .* Δb0 .* t - (t / T2*) )
 
     e_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
     s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
@@ -54,8 +54,8 @@ function forward_operator_intermediate_image_test(config, kx, ky, raw, time_sinc
 
     #Benchmark of forward operator using  E and S0 mappings from Intermediate Generation
     comb = combine_coils ? "" : "_no_combine_coils"
-    e_d .= ComplexF64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Intermediate/2d/t2$comb")))
-    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Results/Intermediate/2d/s0$comb"))
+    e_d .= ComplexF64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/t2$comb")))
+    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0$comb"))
 
     time_since_last_rf = vec(time_since_last_rf)
 

@@ -23,7 +23,7 @@ function load_demo_data(filename; use_float32 = false, use_nom_kz = false)
     noise64 = ComplexF64.(noise)
     raw64 = ComplexF64.(raw)
 
-    kx, ky, kz, b0, time_since_last_rf = matopen("/mnt/f/Dominic_Data/Data/traj_cor.mat", "r") do io
+    kx, ky, kz, b0, time_since_last_rf = matopen("/mnt/f/Dominic/Data/traj_cor.mat", "r") do io
         [read(io, name) for name in ["kx", "ky", "kz", "b0", "time_since_last_rf"]]
     end
 
@@ -36,7 +36,7 @@ function load_demo_data(filename; use_float32 = false, use_nom_kz = false)
     end
 
     if use_nom_kz
-        kz = matopen(io->read(io, "kz"), "/mnt/f/Dominic_Data/Data/traj_nom.mat", "r")
+        kz = matopen(io->read(io, "kz"), "/mnt/f/Dominic/Data/traj_nom.mat", "r")
     end
 
     if use_float32

@@ -2,7 +2,7 @@ includet("load_demo_data.jl")
 includet("forward_op_synthetic_data_test.jl")
 includet("demo_recon_2d.jl")
 
-config, noise, _, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/Data/raw_000.data", use_float32=true, use_nom_kz=true);
+config, noise, _, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
 @assert size(noise) ==     ( 19832 ,   8)   # noise measurement could be used for pre-whitening
 # acquisition order: inner => nkx => nchan => necho => nkz => nky => outer
@@ -60,9 +60,9 @@ timepoint_window_size = 536
 
 t2_star_mapping = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
-b0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
+Δb0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
-t2_star_mapping, s0, b0 = forward_op_synthetic_data_test(config, 
+t2_star_mapping, s0, Δb0 = forward_op_synthetic_data_test(config, 
 @view(kx[:, :, :, :]),
 @view(ky[:, :, :, :]),
 time_since_last_rf,
@@ -76,6 +76,6 @@ use_dcf = false, # for some reason this seems to introduce artifacts into the im
 
 comb = combine_coils ? "" : "_no_combine_coils"
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Synthetic/2d/t2_$timepoint_window_size$comb", ComplexF32.(t2_star_mapping))
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Synthetic/2d/s0_$timepoint_window_size$comb", ComplexF32.(s0))
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Synthetic/2d/b0_$timepoint_window_size$comb", ComplexF32.(b0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/t2_$timepoint_window_size$comb", ComplexF32.(t2_star_mapping))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/s0_$timepoint_window_size$comb", ComplexF32.(s0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/b0_$timepoint_window_size$comb", ComplexF32.(Δb0))

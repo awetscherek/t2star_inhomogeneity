@@ -26,7 +26,7 @@ function forward_op_synthetic_data_test(config, kx, ky, time_since_last_rf, dims
     dcf = use_dcf ? abs.(-size(ky, 1)/2+0.5:size(ky, 1)/2) : 1.0
     dcf = dcf ./ maximum(dcf)
 
-    gamma = 2 * π * 42.576e6
+    γ = 2 * π * 42.576e6
 
     c_d = combine_coils ? sens : [1.0]; # this shouldn't make a copy of sens
 
@@ -38,11 +38,11 @@ function forward_op_synthetic_data_test(config, kx, ky, time_since_last_rf, dims
     selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi;
 
     # Considering the phase equation:
-    # S(t) = S(0) .* exp(i .* gamma .* B_0 .* t - (t / T2*) )
-    # Consider the exponent as e = (t / T2*) - i .* gamma .* B_0 .* t
+    # S(t) = S(0) .* exp(i .* γ .* Δb0 .* t - (t / T2*) )
+    # Consider the exponent as e = (t / T2*) - i .* γ .* Δb0 .* t
     # Real{e} = (1 / T2*)
-    # Im{e} = - gamma .* \delta B_0
-    # such that exp(- t * e) = exp(i .* gamma .* B_0 .* t - (t / T2*) )
+    # Im{e} = - γ .* Δb0
+    # such that exp(- t * e) = exp(i .* γ .* Δb0 .* t - (t / T2*) )
 
     e_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
     s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
@@ -52,8 +52,8 @@ function forward_op_synthetic_data_test(config, kx, ky, time_since_last_rf, dims
     s0_d_tmp = Array{ComplexF64}(undef, size(s0_d));
 
     #Test of forward operator using synthetic data
-    e_d .= ComplexF64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Data/Synthetic/2d/t2_50")))
-    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic_Data/Data/Synthetic/2d/s0_1"))
+    e_d .= ComplexF64.(1 ./ (ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/t2_50")))
+    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/s0_1"))
 
     # plan NUFFTs:
     plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
@@ -132,12 +132,12 @@ function forward_op_synthetic_data_test(config, kx, ky, time_since_last_rf, dims
     finufft_destroy!(plan1)
     finufft_destroy!(plan2)
 
-    # Im{e} = - gamma .* \delta B_0
-    # delta b_0 = - Im{e} ./ gamma
-    b0 = imag(e_d) ./ (- gamma)
+    # Im{e} = - γ .* Δb0
+    # Δb0 = - Im{e} ./ γ
+    Δb0 = imag(e_d) ./ (- γ)
 
     # collect results from GPU & return: 
-    1 ./ real(e_d), s0_d, b0
+    1 ./ real(e_d), s0_d, Δb0
 end
 
 function forward_operator(plan2, e_d, s0_d, timepoints, total_timepoints, kx_d, ky_d,

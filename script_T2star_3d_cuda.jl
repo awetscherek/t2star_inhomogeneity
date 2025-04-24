@@ -3,7 +3,7 @@ includet("demo_recon_3d_cuda.jl")
 
 using ReadWriteCFL
 
-config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic_Data/Data/raw_000.data", use_float32=true);
+config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true);
 
 @assert size(noise) ==     ( 19832 ,   8)   # noise measurement could be used for pre-whitening
 @assert size(raw)   ==     (  536  ,   8    ,   8    ,  32  , 269 )
@@ -63,4 +63,4 @@ comb = combine_coils ? "" : "_no_combine_coils"
 
 dcf = use_dcf ? "_dcf" : ""
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic_Data/Results/Recon/3d/x$comb$dcf", ComplexF32.(x))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Recon/3d/x$comb$dcf", ComplexF32.(x))
