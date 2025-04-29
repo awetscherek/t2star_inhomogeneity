@@ -45,7 +45,10 @@ function fit_s0_r2(voxel_data, echo_times)
 
     init_guess = [abs(voxel_data[1]), 1 / 50.0]
 
-    fit = curve_fit(model, echo_times, abs.(voxel_data), init_guess)
+    lower = [0.0, 1.0 / 500.0]
+    upper = [Inf, 1.0]
+
+    fit = curve_fit(model, echo_times, abs.(voxel_data), init_guess; lower=lower, upper=upper)
 
     S0_magnitude, R2_star = fit.param
     
