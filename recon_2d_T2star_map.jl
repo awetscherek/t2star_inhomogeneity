@@ -39,14 +39,9 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
     # Considering the phase equation:
     # S(t) = S(0) .* exp(i .* γ .* Δb0 .* t - (t / T2*) )
-    # Consider the exponent as e = (t / T2*) - i .* γ .* Δb0 .* t
-    # Such that S(t) = S(0) .* exp(e_d)
-    # Real{e} = (1 / T2*)
-    # Im{e} = - γ .* Δb0
-    # such that exp(- t * e) = exp(i .* γ .* Δb0 .* t - (t / T2*) )
-
-    # e_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
     s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
+    r2_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+    Δb0_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 
     #Allocate temporary expoenent(e) and s0 arrays for line search
     # e_d_tmp = Array{ComplexF64}(undef, size(e_d));
@@ -73,19 +68,9 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x$ip_dcf")[:,:,:,1]);
     # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0$ip_dcf"));
 
-    r2_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
-    Δb0_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
-
-    #im = im{e} = - γ .* Δb0
-    # im = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
-
     r2_d .= 1/50.0
-    Δb0_d .= 0
-    # Δb0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$ip_dcf"))
-
-    # im = - γ .* Δb0
-
-    # e_d .= complex.(r2, im)
+    # Δb0_d .= 0
+    Δb0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$ip_dcf"))
 
     time_since_last_rf = vec(time_since_last_rf)
 
@@ -105,68 +90,31 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     r .-= y_d;
 
     obj = real(r[:]' * r[:]) / 2.0; # objective function
-    alpha = alpha0 * beta
 
     initial_obj = "Initial obj = $obj"
     @info initial_obj
-
     open("output.txt", "a") do f
         println(f, string(initial_obj))
     end
 
-    #---
     # Optimiser
-
     model = (S0 = s0_d, r2 = r2_d, b0 = Δb0_d)
     state = Optimisers.setup(Optimisers.AdamW(), model)
 
-    #---
-
     for it = 1:niter
-        alpha /= (beta^2)
-        obj0 = obj
-        
         g_r2, g_b0, g_s0 = jacobian_operator(plan1, r, r2_d, Δb0_d, s0_d, dcf_d, combine_coils, c_d, timepoints, total_timepoints, time_since_last_rf, kx_d ,ky_d, selection, use_dcf, timepoint_window_size, g_r_t, nx,ny,nz, config["nchan"])
 
         gradients = (S0 = g_s0, r2 = g_r2, b0 = g_b0)
-
         state, model = Optimisers.update(state, model, gradients)
-
         s0_d, r2_d, Δb0_d = model.S0, model.r2, model.b0
-
-        # println("Performing Line search")
-        # for it = 1:max_ls
-        #     println("Iter: $it")
-        #     alpha *= beta
-
-        #     e_d_tmp .= e_d .- alpha .* reshape(g_e, size(e_d));
-        #     s0_d_tmp .= s0_d .- alpha .* reshape(g_s0, size(s0_d));
-
-        #     r2_constraint = min.(real.(e_d_tmp), 1.0)
-        #     e_d_tmp = complex.(r2_constraint, imag.(e_d_tmp))
-
-        #     r .= forward_operator(plan2, e_d_tmp, s0_d_tmp, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
-        #     r .*= dcf_d;
-        #     r .-= y_d;
-
-        #     obj = real(r[:]' * r[:]) / 2.0
-        #     println("New objective: $obj")
-        #     obj < obj0 && break
-        # end
-
-        # e_d .= e_d_tmp
-        # s0_d .= s0_d_tmp
 
         r .= forward_operator(plan2, r2_d, Δb0_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
         r .*= dcf_d;
         r .-= y_d;
 
         obj = real(r[:]' * r[:]) / 2.0
-        # println("New objective: $obj")
-        # obj < obj0 && break
-
-        # info="it = $it, alpha = $alpha, obj = $obj"
-        info="it = $it, obj = $obj"
+        
+        info = "it = $it, obj = $obj"
         @info info
         open("output.txt", "a") do f
             println(f, string(info))
@@ -175,10 +123,6 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
     finufft_destroy!(plan1)
     finufft_destroy!(plan2)
-
-    # Im{e} = - γ .* Δb0
-    # Δb0 = - Im{e} ./ γ
-    # Δb0 = imag(e_d) ./ (- γ)
 
     # collect results from GPU & return: 
     1 ./ r2_d, s0_d, Δb0_d
