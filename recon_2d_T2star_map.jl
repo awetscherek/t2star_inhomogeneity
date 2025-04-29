@@ -45,12 +45,12 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     # Im{e} = - γ .* Δb0
     # such that exp(- t * e) = exp(i .* γ .* Δb0 .* t - (t / T2*) )
 
-    e_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
+    # e_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
     s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
     #Allocate temporary expoenent(e) and s0 arrays for line search
-    e_d_tmp = Array{ComplexF64}(undef, size(e_d));
-    s0_d_tmp = Array{ComplexF64}(undef, size(s0_d));
+    # e_d_tmp = Array{ComplexF64}(undef, size(e_d));
+    # s0_d_tmp = Array{ComplexF64}(undef, size(s0_d));
 
     # this is the raw data from which we want to reconstruct the coil images
     #(timepoints, ky, nz * nchan)
@@ -75,25 +75,26 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x$ip_dcf")[:,:,:,1]);
     # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0$ip_dcf"));
 
-    r2 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
-    Δb0 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+    r2_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+    Δb0_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 
     #im = im{e} = - γ .* Δb0
-    im = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
+    # im = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 
-    r2 .= 1/50.0
-    # Δb0 .= 0
-    Δb0 .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$ip_dcf"))
+    r2_d .= 1/50.0
+    Δb0 .= 0
+    # Δb0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$ip_dcf"))
 
-    im = - γ .* Δb0
+    # im = - γ .* Δb0
 
-    e_d .= complex.(r2, im)
+    # e_d .= complex.(r2, im)
 
     time_since_last_rf = vec(time_since_last_rf)
 
     #intermediate result, required for gradient at each time point
     g_r_t = Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
-    g_e = combine_coils ? Array{ComplexF64}(undef, size(e_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
+    g_r2 = combine_coils ? Array{Float64}(undef, size(r2_d)) : Array{Float64}(undef, nx, ny, nz * config["nchan"]);
+    g_b0 = combine_coils ? Array{Float64}(undef, size(Δb0_d)) : Array{Float64}(undef, nx, ny, nz * config["nchan"]);
     g_s0 = combine_coils ? Array{ComplexF64}(undef, size(s0_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
 
     # plan NUFFTs:
@@ -101,7 +102,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
 
     r = Array{ComplexF64}(undef,size(y_d));
-    r .= forward_operator(plan2, e_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+    r .= forward_operator(plan2, r2_d, b0_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
     r .*= dcf_d;
     r .-= y_d;
 
@@ -118,7 +119,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     #---
     # Optimiser
 
-    model = (S0 = s0_d, e = e_d)
+    model = (S0 = s0_d, r2 = r2_d, b0 = Δb0_d)
     state = Optimisers.setup(Optimisers.AdamW(), model)
 
     #---
@@ -127,13 +128,13 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
         alpha /= (beta^2)
         obj0 = obj
         
-        g_e, g_s0 = jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, timepoints, total_timepoints, time_since_last_rf, kx_d ,ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
+        g_r2, g_b0, g_s0 = jacobian_operator(plan1, r, r2_d, b0_d, s0_d, dcf_d, combine_coils, c_d, timepoints, total_timepoints, time_since_last_rf, kx_d ,ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
 
-        gradients = (S0 = g_s0, e = g_e)
+        gradients = (S0 = g_s0, r2 = g_r2, b0 = g_b0)
 
         state, model = Optimisers.update(state, model, gradients)
 
-        s0_d, e_d = model.S0, model.e
+        s0_d, r2_d. b0_d = model.S0, model.r2, model.b0
 
         # println("Performing Line search")
         # for it = 1:max_ls
@@ -158,7 +159,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
         # e_d .= e_d_tmp
         # s0_d .= s0_d_tmp
 
-        r .= forward_operator(plan2, e_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
+        r .= forward_operator(plan2, r2_d, b0_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
         r .*= dcf_d;
         r .-= y_d;
 
@@ -185,7 +186,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     1 ./ real(e_d), s0_d, Δb0
 end
 
-function forward_operator(plan2, e_d, s0_d, timepoints, total_timepoints, kx_d, ky_d,
+function forward_operator(plan2, r2_d, b0_d, s0_d, timepoints, total_timepoints, kx_d, ky_d,
     c_d, time_since_last_rf, selection, timepoint_window_size)
     y_list = Vector{Array{ComplexF64}}(undef, timepoints)
     for t in 1:timepoints
@@ -202,7 +203,7 @@ function forward_operator(plan2, e_d, s0_d, timepoints, total_timepoints, kx_d, 
 
         finufft_setpts!(plan2, kx_d_t, ky_d_t)
 
-        w_d_t = s0_d .* exp.(- t_ms .* e_d)
+        w_d_t = s0_d .* exp.(t_ms .* (im .* γ .* b0_d .- r2_d))
 
         y_t = finufft_exec(plan2, w_d_t .* c_d)
         
@@ -213,12 +214,14 @@ function forward_operator(plan2, e_d, s0_d, timepoints, total_timepoints, kx_d, 
     return y
 end
 
-function jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, 
+function jacobian_operator(plan1, r, r2_d, b0_d, s0_d, dcf_d, combine_coils, c_d, 
     timepoints, total_timepoints, time_since_last_rf, kx_d, ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
     
     # Initialize sum of gradients (nx,ny,nz,nchan) prior to summing of gradients over coils
+    #change from c_d because that doesnt work for no combine coils
     g_s0_total = zeros(ComplexF64, size(c_d))
-    g_e_total = zeros(ComplexF64, size(c_d))
+    g_r2_total = zeros(Float64, size(c_d))
+    g_b0_total = zeros(Float64, size(c_d))
 
     start_idx = 1
     for t in 1:timepoints
@@ -256,7 +259,8 @@ function jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d,
         exp_term = exp.(- t_ms .* e_d)
 
         # g_e_total .+= conj.((- conj_s0 .* t_ms .* exp_term) .* g_r_result_t)
-        g_e_total .+= (- conj_s0 .* t_ms .* exp_term) .* conj.(g_r_result_t)
+        g_r2_total .+= (- conj_s0 .* t_ms .* exp_term) .* conj.(g_r_result_t)
+        g_b0_total .+= (- conj_s0 .* t_ms .* exp_term) .* conj.(g_r_result_t)
         # g_e_total .+= (- conj_s0 .* t_ms .* exp_term) .* g_r_result_t
         # g_e_total .+= (- conj_s0 .* t_ms .* exp_term)
         g_s0_total .+= exp_term .* g_r_result_t
@@ -267,10 +271,11 @@ function jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d,
     end
 
     if combine_coils
-        g_e_total = dropdims(sum(g_e_total, dims=4), dims=4)
+        g_r2_total = dropdims(sum(g_r2_total, dims=4), dims=4)
+        g_s0_total = dropdims(sum(g_s0_total, dims=4), dims=4)
         g_s0_total = dropdims(sum(g_s0_total, dims=4), dims=4)
     end
 
-    return g_e_total, g_s0_total
+    return g_r2_total,g_b0_total, g_s0_total
 end
 
