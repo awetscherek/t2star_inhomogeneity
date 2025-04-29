@@ -220,7 +220,6 @@ function jacobian_operator(plan1, r, r2_d, Δb0_d, s0_d, dcf_d, combine_coils, c
     γ = 2 * π * 42.576e6
     
     # Initialize sum of gradients (nx,ny,nz,nchan) prior to summing of gradients over coils
-    #change from c_d because that doesnt work for no combine coils
     g_s0_total = zeros(ComplexF64, nx,ny,nz,nchan)
     g_r2_total = zeros(Float64, nx,ny,nz,nchan)
     g_b0_total = zeros(Float64, nx,ny,nz,nchan)
@@ -271,7 +270,7 @@ function jacobian_operator(plan1, r, r2_d, Δb0_d, s0_d, dcf_d, combine_coils, c
 
     if combine_coils
         g_r2_total = dropdims(sum(g_r2_total, dims=4), dims=4)
-        g_s0_total = dropdims(sum(g_s0_total, dims=4), dims=4)
+        g_b0_total = dropdims(sum(g_b0_total, dims=4), dims=4)
         g_s0_total = dropdims(sum(g_s0_total, dims=4), dims=4)
     end
 
