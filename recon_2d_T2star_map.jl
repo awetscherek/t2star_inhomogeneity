@@ -39,11 +39,13 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
     # Considering the phase equation:
     # S(t) = S(0) .* exp(i .* γ .* Δb0 .* t - (t / T2*) )
-    # Consider the exponent as e = (t / T2*) - i .* γ .* Δb0 .* t
+    # Consider the exponent (t / T2*) - i .* γ .* Δb0 .* t
     # Such that S(t) = S(0) .* exp(e_d)
+    # We use a variable e such that
     # Real{e} = (1 / T2*)
     # Im{e} = - γ .* Δb0
-    # such that exp(- t * e) = exp(i .* γ .* Δb0 .* t - (t / T2*) )
+    # e = (1/T2* - i .* γ .* Δb0)
+    # Then, exp(- t * e) = exp(i .* γ .* Δb0 .* t - (t / T2*) )
 
     e_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
     s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
@@ -82,8 +84,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     im = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 
     r2 .= 1/50.0
-    # Δb0 .= 0
-    Δb0 .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$ip_dcf"))
+    Δb0 .= 0
+    # Δb0 .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$ip_dcf"))
 
     im = - γ .* Δb0
 
@@ -253,13 +255,10 @@ function jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d,
         end
 
         conj_s0 = conj.(s0_d)
-        exp_term = exp.(- t_ms .* e_d)
+        conj_exp_term = conj.(exp.(- t_ms .* e_d))
 
-        # g_e_total .+= conj.((- conj_s0 .* t_ms .* exp_term) .* g_r_result_t)
-        g_e_total .+= (- conj_s0 .* t_ms .* exp_term) .* conj.(g_r_result_t)
-        # g_e_total .+= (- conj_s0 .* t_ms .* exp_term) .* g_r_result_t
-        # g_e_total .+= (- conj_s0 .* t_ms .* exp_term)
-        g_s0_total .+= exp_term .* g_r_result_t
+        g_e_total .+= (- conj_s0 .* t_ms .* conj_exp_term) .* g_r_result_t
+        g_s0_total .+= conj_exp_term .* g_r_result_t
 
         #TODO: Maybe put the sum of gradients in for loop instead of at end
 
