@@ -50,10 +50,6 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     e_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
     s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
-    #Allocate temporary expoenent(e) and s0 arrays for line search
-    e_d_tmp = Array{ComplexF64}(undef, size(e_d));
-    s0_d_tmp = Array{ComplexF64}(undef, size(s0_d));
-
     # this is the raw data from which we want to reconstruct the coil images
     #(timepoints, ky, nz * nchan)
 
@@ -84,8 +80,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     im = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 
     r2 .= 1/50.0
-    Δb0 .= 0
-    # Δb0 .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$ip_dcf"))
+    # Δb0 .= 0
+    Δb0 .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$ip_dcf"))
 
     im = - γ .* Δb0
 
@@ -108,7 +104,6 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     r .-= y_d;
 
     obj = real(r[:]' * r[:]) / 2.0; # objective function
-    alpha = alpha0 * beta
 
     initial_obj = "Initial obj = $obj"
     @info initial_obj
@@ -117,58 +112,26 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
         println(f, string(initial_obj))
     end
 
-    #---
     # Optimiser
-
     model = (S0 = s0_d, e = e_d)
     state = Optimisers.setup(Optimisers.AdamW(), model)
 
-    #---
+    for it = 1:niter        
+        g_e, g_s0 = jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, timepoints, total_timepoints, time_since_last_rf, kx_d ,ky_d, selection, use_dcf, timepoint_window_size, g_r_t, nx, ny, nz, config["nchan"])
 
-    for it = 1:niter
-        alpha /= (beta^2)
-        obj0 = obj
-        
-        g_e, g_s0 = jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, timepoints, total_timepoints, time_since_last_rf, kx_d ,ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
+        println("The gradient of g_e")
+        println(g_e)
 
         gradients = (S0 = g_s0, e = g_e)
-
         state, model = Optimisers.update(state, model, gradients)
-
         s0_d, e_d = model.S0, model.e
-
-        # println("Performing Line search")
-        # for it = 1:max_ls
-        #     println("Iter: $it")
-        #     alpha *= beta
-
-        #     e_d_tmp .= e_d .- alpha .* reshape(g_e, size(e_d));
-        #     s0_d_tmp .= s0_d .- alpha .* reshape(g_s0, size(s0_d));
-
-        #     r2_constraint = min.(real.(e_d_tmp), 1.0)
-        #     e_d_tmp = complex.(r2_constraint, imag.(e_d_tmp))
-
-        #     r .= forward_operator(plan2, e_d_tmp, s0_d_tmp, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
-        #     r .*= dcf_d;
-        #     r .-= y_d;
-
-        #     obj = real(r[:]' * r[:]) / 2.0
-        #     println("New objective: $obj")
-        #     obj < obj0 && break
-        # end
-
-        # e_d .= e_d_tmp
-        # s0_d .= s0_d_tmp
 
         r .= forward_operator(plan2, e_d, s0_d, timepoints, total_timepoints, kx_d, ky_d, c_d, time_since_last_rf, selection, timepoint_window_size)
         r .*= dcf_d;
         r .-= y_d;
 
         obj = real(r[:]' * r[:]) / 2.0
-        # println("New objective: $obj")
-        # obj < obj0 && break
 
-        # info="it = $it, alpha = $alpha, obj = $obj"
         info="it = $it, obj = $obj"
         @info info
         open("output.txt", "a") do f
@@ -216,11 +179,11 @@ function forward_operator(plan2, e_d, s0_d, timepoints, total_timepoints, kx_d, 
 end
 
 function jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, 
-    timepoints, total_timepoints, time_since_last_rf, kx_d, ky_d, selection, use_dcf, timepoint_window_size, g_r_t)
+    timepoints, total_timepoints, time_since_last_rf, kx_d, ky_d, selection, use_dcf, timepoint_window_size, g_r_t, nx, ny, nz, nchan)
     
     # Initialize sum of gradients (nx,ny,nz,nchan) prior to summing of gradients over coils
-    g_s0_total = zeros(ComplexF64, size(c_d))
-    g_e_total = zeros(ComplexF64, size(c_d))
+    g_s0_total = zeros(ComplexF64, nx, ny, nz, nchan)
+    g_e_total = zeros(ComplexF64, nx, ny, nz, nchan)
 
     start_idx = 1
     for t in 1:timepoints
