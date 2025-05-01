@@ -64,7 +64,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     # Reshape fat modulation so it can be easily multiplied in k-space
     if !isnothing(fat_modulation)
         fat_modulation = repeat(vec(fat_modulation), 1, nky)[selection]
-        fat_modulation .+= (1 + 0im)
+        fat_modulation .+= 1
     end
 
     γ = 2 * π * 42.576e6
@@ -85,8 +85,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     im = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
 
     r2 .= 1 / 50.0
-    # Δb0 .= 0
-    Δb0 .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$ip_dcf"))
+    Δb0 .= 0
+    # Δb0 .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$ip_dcf"))
 
     im = -γ .* Δb0
 

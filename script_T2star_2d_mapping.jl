@@ -94,9 +94,9 @@ t2_star_mapping, s0, Δb0 = recon_2d_t2star_map(config,
 );
 
 comb = combine_coils ? "" : "_no_combine_coils"
-
 dcf = use_dcf ? "_dcf" : ""
+fat_mod = use_fat_modulation ? "_fatmod" : ""
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/t2_$timepoint_window_size$comb$dcf", ComplexF32.(t2_star_mapping))
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/s0_$timepoint_window_size$comb$dcf", ComplexF32.(s0))
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/delta_b0_$timepoint_window_size$comb$dcf", ComplexF32.(Δb0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/t2_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(t2_star_mapping))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/s0_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(s0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/delta_b0_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(Δb0))
