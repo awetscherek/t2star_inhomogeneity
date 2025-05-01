@@ -1,18 +1,15 @@
-includet("fat_modulation.jl")
-
 using FINUFFT
 using Optimisers
+using ProgressBars
 
-function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # keyword arguments: 
+function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword arguments: 
     combine_coils = false,      # whether to use coil sensitivities
     sens = nothing,             # coil sensitivities ...
     use_dcf = false,            # whether to use pre-conditioner
     tol = 1e-9,                 # tolerance for FINUFFT
     niter = use_dcf ? 10 : 100, # number of gradient descent iterations
-    max_ls = 100,               # number of line search iterations
-    alpha0 = 1.0,               # initial step size for line search
-    timepoint_window_size=536,
-    beta = 0.6)                 # factor to decrease step size
+    timepoint_window_size=536,  # number of samples within each timepoint approximation window
+    fat_modulation = nothing) # consideration of fat and water
 
     @assert !combine_coils || !isnothing(sens) "if we want to combine coils we need coil sensitivities ..."
 
@@ -64,6 +61,12 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     num_total_timepoints = config["necho"] * nkx
     num_timepoints = ceil(Int, num_total_timepoints / timepoint_window_size)
 
+    # Reshape fat modulation so it can be easily multiplied in k-space
+    if !isnothing(fat_modulation)
+        fat_modulation = repeat(vec(fat_modulation), nky)[selection]
+        println(size(fat_modulation))
+    end
+
     γ = 2 * π * 42.576e6
 
     # Initial value of exponent(e) and S0:
@@ -89,10 +92,6 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 
     e_d .= complex.(r2, im)
 
-    timepoints = vec(time_since_last_rf)
-
-    fat_modulation = calculate_fat_modulation(timepoints)
-
     #intermediate result, required for gradient at each time point
     g_r_t = Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
     g_e = combine_coils ? Array{ComplexF64}(undef, size(e_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);
@@ -103,7 +102,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
 
     r = Array{ComplexF64}(undef,size(y_d));
-    r .= forward_operator(plan2, e_d, s0_d, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection, timepoint_window_size)
+    r .= forward_operator(plan2, e_d, s0_d, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection, timepoint_window_size, fat_modulation)
     r .*= dcf_d;
     r .-= y_d;
 
@@ -120,24 +119,27 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
     model = (S0 = s0_d, e = e_d)
     state = Optimisers.setup(Optimisers.AdamW(), model)
 
-    for it = 1:niter        
+    iter = ProgressBar(1:niter)
+    for it in iter
         g_e, g_s0 = jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints, timepoints, kx_d ,ky_d, selection, use_dcf, timepoint_window_size, g_r_t, nx, ny, nz, config["nchan"])
 
         gradients = (S0 = g_s0, e = g_e)
         state, model = Optimisers.update(state, model, gradients)
         s0_d, e_d = model.S0, model.e
 
-        r .= forward_operator(plan2, e_d, s0_d, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection, timepoint_window_size)
+        r .= forward_operator(plan2, e_d, s0_d, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection, timepoint_window_size, fat_modulation)
         r .*= dcf_d;
         r .-= y_d;
 
         obj = real(r[:]' * r[:]) / 2.0
 
         info="it = $it, obj = $obj"
-        @info info
+        # @info info
         open("output.txt", "a") do f
             println(f, string(info))
         end
+
+        set_description(iter, "obj: $obj")
     end
 
     finufft_destroy!(plan1)
@@ -152,10 +154,9 @@ function recon_2d_t2star_map(config, kx, ky, raw, time_since_last_rf, dims; # ke
 end
 
 function forward_operator(plan2, e_d, s0_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
-    c_d, timepoints, selection, timepoint_window_size)
+    c_d, timepoints, selection, timepoint_window_size, fat_modulation)
     y_list = Vector{Array{ComplexF64}}(undef, num_timepoints)
-    for t in 1:num_timepoints
-        @info "t=$t"
+    for t in ProgressBar(1:num_timepoints)
         t_start = (t-1) * timepoint_window_size + 1
         t_end = min(t * timepoint_window_size, num_total_timepoints)
         approx_t = round(Int, (t_start + t_end) / 2)
@@ -176,6 +177,14 @@ function forward_operator(plan2, e_d, s0_d, num_timepoints, num_total_timepoints
     end
     y = vcat(y_list...)
 
+    # println("size of y")
+    # println(size(y))
+
+
+    if !isnothing(fat_modulation)
+        y .*= fat_modulation
+    end
+
     return y
 end
 
@@ -187,9 +196,7 @@ function jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d,
     g_e_total = zeros(ComplexF64, nx, ny, nz, nchan)
 
     start_idx = 1
-    for t in 1:num_timepoints
-        @info "Jacobian Operator t=$t"
-
+    for t in ProgressBar(1:num_timepoints)
         t_start = (t-1) * timepoint_window_size + 1
         t_end = min(t * timepoint_window_size, num_total_timepoints)
         approx_t = round(Int, (t_start + t_end) / 2)

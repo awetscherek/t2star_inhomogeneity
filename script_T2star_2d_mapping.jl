@@ -1,6 +1,7 @@
 includet("load_demo_data.jl")
 includet("recon_2d_T2star_map.jl")
 includet("demo_recon_2d.jl")
+includet("fat_modulation.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
@@ -34,7 +35,7 @@ ny = 256
 nz = 32 #number of slices
 
 # low resolution reconstruction of echo 1 for coil sensitivity estimation:
-combine_coils = true
+combine_coils = false
 use_dcf = true
 if combine_coils
     x = demo_recon_2d(config, 
@@ -64,6 +65,13 @@ end
 # nkx (536) - Echo time of each assumed to be the timepoint
 timepoint_window_size = 536
 
+timepoints = vec(time_since_last_rf)
+
+use_fat_modulation = false
+if use_fat_modulation
+    fat_modulation = calculate_fat_modulation(time_since_last_rf)
+end
+
 # full-scale reconstruction (can loop over echoes):
 
 t2_star_mapping = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
@@ -74,7 +82,8 @@ t2_star_mapping, s0, Δb0 = recon_2d_t2star_map(config,
 @view(kx[:, :, :, :]),
 @view(ky[:, :, :, :]),
 @view(raw[:, :, :, :, :]),
-time_since_last_rf,
+timepoints,
+fat_modulation = use_fat_modulation ? fat_modulation : nothing,
 [nx, ny],
 combine_coils = combine_coils,
 timepoint_window_size=timepoint_window_size,
