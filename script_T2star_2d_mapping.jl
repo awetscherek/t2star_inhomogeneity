@@ -5,8 +5,8 @@ includet("fat_modulation.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
-@assert size(noise) ==     ( 19832 ,   8)   # noise measurement could be used for pre-whitening
-@assert size(raw)   ==     (  536  ,   8    ,   8    ,  32  , 269 )
+@assert size(noise) == (19832, 8)   # noise measurement could be used for pre-whitening
+@assert size(raw) == (536, 8, 8, 32, 269)
 # acquisition order: inner => nkx => nchan => necho => nkz => nky => outer
 
 using ReadWriteCFL
@@ -34,16 +34,19 @@ nx = 256
 ny = 256
 nz = 32 #number of slices
 
-# low resolution reconstruction of echo 1 for coil sensitivity estimation:
-combine_coils = false
+# Configure Settings
+combine_coils = true
 use_dcf = true
+use_fat_modulation = true
+
+# low resolution reconstruction of echo 1 for coil sensitivity estimation:
 if combine_coils
-    x = demo_recon_2d(config, 
+    x = demo_recon_2d(config,
         @view(kx[:, 1, :]),
         @view(ky[:, 1, :]),
         @view(raw[:, :, 1, :, :]),
         [64, 64]
-    );
+    )
 
     #using ImageView # alternative to arrShow, but doesn't work with complex and CuArray data
     #imshow(abs.(x))
@@ -56,7 +59,7 @@ if combine_coils
     run(`../../bart-0.9.00/bart ecalib -t 0.01 -m1 ksp_zerop sens`)
 
     # load coil sensitivities into Julia
-    sens = ReadWriteCFL.readcfl("sens");
+    sens = ReadWriteCFL.readcfl("sens")
 end
 #######################################################################################################################
 
@@ -67,7 +70,6 @@ timepoint_window_size = 536
 
 timepoints = vec(time_since_last_rf)
 
-use_fat_modulation = false
 if use_fat_modulation
     fat_modulation = calculate_fat_modulation(time_since_last_rf)
 end
@@ -78,17 +80,17 @@ t2_star_mapping = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Floa
 s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 Δb0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
-t2_star_mapping, s0, Δb0 = recon_2d_t2star_map(config, 
-@view(kx[:, :, :, :]),
-@view(ky[:, :, :, :]),
-@view(raw[:, :, :, :, :]),
-timepoints,
-fat_modulation = use_fat_modulation ? fat_modulation : nothing,
-[nx, ny],
-combine_coils = combine_coils,
-timepoint_window_size=timepoint_window_size,
-sens = combine_coils ? sens : nothing,
-use_dcf = use_dcf, # for some reason this seems to introduce artifacts into the image ...
+t2_star_mapping, s0, Δb0 = recon_2d_t2star_map(config,
+    @view(kx[:, :, :, :]),
+    @view(ky[:, :, :, :]),
+    @view(raw[:, :, :, :, :]),
+    timepoints,
+    fat_modulation=use_fat_modulation ? fat_modulation : nothing,
+    [nx, ny],
+    combine_coils=combine_coils,
+    timepoint_window_size=timepoint_window_size,
+    sens=combine_coils ? sens : nothing,
+    use_dcf=use_dcf, # for some reason this seems to introduce artifacts into the image ...
 );
 
 comb = combine_coils ? "" : "_no_combine_coils"
