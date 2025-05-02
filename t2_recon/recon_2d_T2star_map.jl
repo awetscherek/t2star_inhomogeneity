@@ -169,7 +169,7 @@ function forward_operator(plan2, e_d, s0_d, num_timepoints, num_total_timepoints
         t_start = (t - 1) * timepoint_window_size + 1
         t_end = min(t * timepoint_window_size, num_total_timepoints)
         
-        t_ms = approximate_time(:nearest_neighbour, timepoints, t_start, t_end)
+        t_ms = approximate_time(timepoints, t_start, t_end, :nearest_neighbour)
 
         sel = selection[t_start:t_end, :]
         kx_d_t = collect(kx_d[t_start:t_end, :][sel])
@@ -204,7 +204,7 @@ function jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, num_t
         t_start = (t - 1) * timepoint_window_size + 1
         t_end = min(t * timepoint_window_size, num_total_timepoints)
         
-        t_ms = approximate_time(:nearest_neighbour, timepoints, t_start, t_end)
+        t_ms = approximate_time(timepoints, t_start, t_end, :nearest_neighbour)
 
         # Get the boolean mask for timepoint t (assume selection is 2D with one row per timepoint)
         sel = selection[t_start:t_end, :]
@@ -248,7 +248,7 @@ function jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, num_t
     return g_e_total, g_s0_total
 end
 
-function approximate_time(method::Symbol = :nearest_neighbour, timepoints, t_start, t_end)
+function approximate_time(timepoints, t_start, t_end, method::Symbol = :nearest_neighbour)
     if method == :nearest_neighbour
         return nearest_neighbour(timepoints, t_start, t_end)
     # elseif method == :linear_interpolation
