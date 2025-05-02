@@ -1,6 +1,6 @@
 using FINUFFT
 
-function demo_recon_2d(config, kx, ky, raw, dims; # keyword arguments: 
+function image_recon_2d(config, kx, ky, raw, dims; # keyword arguments: 
     combine_coils = false,      # whether to use coil sensitivities
     sens = nothing,             # coil sensitivities ...
     use_dcf = false,            # whether to use pre-conditioner

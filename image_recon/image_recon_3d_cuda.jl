@@ -1,6 +1,6 @@
 using CUDA, FINUFFT
 
-function demo_recon_3d(config, kx, ky, kz, raw, dims; # keyword arguments: 
+function image_recon_3d(config, kx, ky, kz, raw, dims; # keyword arguments: 
     combine_coils = false,      # whether to use coil sensitivities
     sens = nothing,             # coil sensitivities ...
     use_dcf = false,            # whether to use pre-conditioner

@@ -1,5 +1,5 @@
 includet("../load_demo_data.jl")
-includet("demo_recon_3d_cuda.jl")
+includet("image_recon_3d_cuda.jl")
 
 using ReadWriteCFL
 
@@ -26,7 +26,7 @@ if combine_coils
         @info "No coil sensitivies found - creating coil sensitivity estimation"
 
         # low resolution reconstruction of echo 1 for coil sensitivity estimation:
-        x = demo_recon_2d(config,
+        x = image_recon_2d(config,
             @view(kx[:, 1, :]),
             @view(ky[:, 1, :]),
             @view(raw[:, :, 1, :, :]),
@@ -51,7 +51,7 @@ x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Arra
 
 for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
 
-    xe .= demo_recon_3d(config, 
+    xe .= image_recon_3d(config, 
         @view(kx[:, ie, :, :]),
         @view(ky[:, ie, :, :]),
         @view(kz[:, ie, :, :]),

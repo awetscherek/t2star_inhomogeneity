@@ -1,6 +1,6 @@
 includet("../load_demo_data.jl")
 includet("recon_2d_T2star_map.jl")
-includet("../image_recon/demo_recon_2d.jl")
+includet("../image_recon/image_recon_2d.jl")
 includet("../fat_modulation.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
@@ -46,7 +46,7 @@ if combine_coils
         @info "No coil sensitivies found - creating coil sensitivity estimation"
 
         # low resolution reconstruction of echo 1 for coil sensitivity estimation:
-        x = demo_recon_2d(config,
+        x = image_recon_2d(config,
             @view(kx[:, 1, :]),
             @view(ky[:, 1, :]),
             @view(raw[:, :, 1, :, :]),

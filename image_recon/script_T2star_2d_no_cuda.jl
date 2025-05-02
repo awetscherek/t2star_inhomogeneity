@@ -1,5 +1,5 @@
 includet("../load_demo_data.jl")
-includet("demo_recon_2d.jl")
+includet("image_recon_2d.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
@@ -44,7 +44,7 @@ if combine_coils
         @info "No coil sensitivies found - creating coil sensitivity estimation"
 
         # low resolution reconstruction of echo 1 for coil sensitivity estimation:
-        x = demo_recon_2d(config,
+        x = image_recon_2d(config,
             @view(kx[:, 1, :]),
             @view(ky[:, 1, :]),
             @view(raw[:, :, 1, :, :]),
@@ -69,7 +69,7 @@ end
 x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"], config["necho"]);
 
 for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
-    xe .= demo_recon_2d(config, 
+    xe .= image_recon_2d(config, 
     @view(kx[:, ie, :, :]),
     @view(ky[:, ie, :, :]),
     @view(raw[:, :, ie, :, :]),

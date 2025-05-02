@@ -1,4 +1,8 @@
-# Image Reconstruction Demo - multiecho radial
+# Improving T2* Estimation for Detection of Tumour Hypoxia in an MR-Linac
+
+An Imperial College Department of Computing MEng Individual Project with the Institute of Cancer Research by Dominic Qu
+
+Supervisors: Andreas Wetscherek, Wayne Luk
 
 ## Basic Julia workflow
 
