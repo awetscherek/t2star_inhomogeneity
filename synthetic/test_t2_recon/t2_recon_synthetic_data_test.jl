@@ -2,7 +2,7 @@ using FINUFFT
 using Optimisers
 using ProgressBars
 
-function forward_op_synthetic_data_test(config, kx, ky, raw, timepoints, dims; # keyword arguments: 
+function t2_recon_synthetic_data_test(config, kx, ky, raw, timepoints, dims; # keyword arguments: 
     combine_coils=false,      # whether to use coil sensitivities
     sens=nothing,             # coil sensitivities ...
     use_dcf=false,            # whether to use pre-conditioner
@@ -69,6 +69,13 @@ function forward_op_synthetic_data_test(config, kx, ky, raw, timepoints, dims; #
 
     γ = 2 * π * 42.576e6
 
+
+    r2 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
+    Δb0 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
+
+    #im = im{e} = - γ .* Δb0
+    im = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
+
     # Initial value of exponent(e) and S0:
     init_prediction_dcf = true
     ip_dcf = init_prediction_dcf ? "_dcf" : ""
@@ -77,12 +84,6 @@ function forward_op_synthetic_data_test(config, kx, ky, raw, timepoints, dims; #
     # s0_d .= 0.0;
     # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x$ip_dcf")[:, :, :, 1])
     # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0$ip_dcf"));
-
-    r2 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
-    Δb0 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
-
-    #im = im{e} = - γ .* Δb0
-    im = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
 
     Δb0 .= 0
     # Δb0 .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$ip_dcf"))

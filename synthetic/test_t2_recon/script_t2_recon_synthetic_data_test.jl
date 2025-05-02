@@ -1,6 +1,7 @@
-includet("../load_demo_data.jl")
-includet("forward_op_synthetic_data_test.jl")
-includet("../image_recon/image_recon_2d.jl")
+includet("../../load_demo_data.jl")
+includet("t2_recon_synthetic_data_test.jl")
+includet("../../image_recon/image_recon_2d.jl")
+includet("../../fat_modulation.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
@@ -74,12 +75,12 @@ t2_star_mapping = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Floa
 s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 Δb0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
-t2_star_mapping, s0, Δb0 = forward_op_synthetic_data_test(config, 
+t2_star_mapping, s0, Δb0 = t2_recon_synthetic_data_test(config, 
 @view(kx[:, :, :, :]),
 @view(ky[:, :, :, :]),
 @view(raw[:, :, :, :, :]),
 timepoints,
-fat_modulation = fat_modulation,
+fat_modulation=use_fat_modulation ? fat_modulation : nothing,
 [nx, ny],
 combine_coils = combine_coils,
 timepoint_window_size=timepoint_window_size,

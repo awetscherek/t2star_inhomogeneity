@@ -101,9 +101,15 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
     plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
 
-    r = Array{ComplexF64}(undef, size(y_d))
-    r .= forward_operator(plan2, e_d, s0_d, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
+    # Initialise Operators with implicit values
+    forward_operator = (e, s0) -> forward_operator(plan2, e, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
     timepoint_window_size, fat_modulation)
+
+    adjoint_operator = (e, s0) -> jacobian_operator(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+    timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, g_r_t, fat_modulation, nx, ny, nz, config["nchan"])
+
+    r = Array{ComplexF64}(undef, size(y_d))
+    r .= forward_operator(e_d, s0_d)
 
     r .*= dcf_d
     r .-= y_d
@@ -123,15 +129,13 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
 
     iter = ProgressBar(1:niter)
     for it in iter
-        g_e, g_s0 = jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
-            timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, g_r_t, fat_modulation, nx, ny, nz, config["nchan"])
+        g_e, g_s0 = adjoint_operator(e_d, s0_d)
 
         gradients = (S0=g_s0, e=g_e)
         state, model = Optimisers.update(state, model, gradients)
         s0_d, e_d = model.S0, model.e
 
-        r .= forward_operator(plan2, e_d, s0_d, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
-            timepoint_window_size, fat_modulation)
+        r .= forward_operator(e_d, s0_d)
 
         r .*= dcf_d
         r .-= y_d
@@ -247,8 +251,8 @@ end
 function approximate_time(method::Symbol = :nearest_neighbour, timepoints, t_start, t_end)
     if method == :nearest_neighbour
         return nearest_neighbour(timepoints, t_start, t_end)
-    elseif method == :linear_interpolation
-        return linear_interpolation(timepoints, t_start, t_end)
+    # elseif method == :linear_interpolation
+    #     return linear_interpolation(timepoints, t_start, t_end)
     else
         throw(ArgumentError("Unknown Method: $method"))
     end
