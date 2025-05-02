@@ -2,7 +2,7 @@ using FINUFFT
 using Optimisers
 using ProgressBars
 
-function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword arguments: 
+function forward_op_synthetic_data_test(config, kx, ky, raw, timepoints, dims; # keyword arguments: 
     combine_coils=false,      # whether to use coil sensitivities
     sens=nothing,             # coil sensitivities ...
     use_dcf=false,            # whether to use pre-conditioner
@@ -75,7 +75,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
 
     # Take initial value of S0 to be reconstruction
     # s0_d .= 0.0;
-    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x$ip_dcf")[:, :, :, 1])
+    # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x$ip_dcf")[:, :, :, 1])
     # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0$ip_dcf"));
 
     r2 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
@@ -84,9 +84,11 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     #im = im{e} = - γ .* Δb0
     im = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
 
-    r2 .= 1 / 50.0
     Δb0 .= 0
     # Δb0 .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$ip_dcf"))
+
+    s0_d .= 1
+    r2 .= 1 ./ 50.0
 
     im = -γ .* Δb0
 
@@ -210,7 +212,7 @@ function jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, num_t
 
         # Extract the segment of the residual corresponding to timepoint t.
         r_t = r[start_idx:start_idx+npoints-1, :]
-        fat_modulation_t = fat_modulation[start_idx:start_idx+npoints-1]
+        fat_modulation_t = !isnothing(fat_modulation) ? view(fat_modulation,start_idx:start_idx+npoints-1) : 1.0
 
         dcf_t = use_dcf ? view(dcf_d, start_idx:start_idx+npoints-1) : 1.0
 

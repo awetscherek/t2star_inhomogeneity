@@ -1,4 +1,4 @@
-includet("load_demo_data.jl")
+includet("../load_demo_data.jl")
 
 # using LsqFit
 using ReadWriteCFL
@@ -54,22 +54,30 @@ function fit_S0_R2_4D(echo_times,
     R2 = Array{Float64}(undef, nx,ny,nz)
 
     @inbounds for ix in 1:nx, iy in 1:ny, iz in 1:nz
-        # 1) extract the time‐series at this voxel
         y = @view S_data[ix,iy,iz, :]
 
+        if all(abs.(y) .< eps())
+            continue
+        end
+
         # 2) remove known phase evolution exp(i γ B0 t)
-        y_corr = y .* exp.(-im * γ * Δb0[ix,iy,iz] .* echo_times)
+        ϕ = γ * Δb0[ix,iy,iz] .* echo_times
+        y_corr = y .* exp.(-1im .* ϕ)
+
+        mags = abs.(y_corr)
+        mags .= max.(mags, 1e-12)
+        phs = angle.(y_corr) |> unwrap
 
         # 3) linearize: w = log|y_corr| + i * unwrap(arg y_corr)
-        ph = unwrap(angle.(y_corr))
-        w  = log.(abs.(y_corr)) .+ im .* ph
+        w  = log.(mags) .+ 1im .* phs
+
 
         # 4) solve [1 t] · [log S0; p] ≈ w
         p = X \ w
 
         # 5) recover S0 and T2*
         S0[ix,iy,iz] = exp(p[1])
-        R2[ix,iy,iz] = -real(p[2])
+        R2[ix,iy,iz] = -real(p[2]) > 0 ? -real(p[2]) : 0.0
     end
 
     return S0, R2

@@ -1,4 +1,4 @@
-includet("load_demo_data.jl")
+includet("../load_demo_data.jl")
 includet("demo_recon_2d.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
@@ -32,29 +32,35 @@ nx = 256
 ny = 256
 nz = 32 #number of slices
 
-# low resolution reconstruction of echo 1 for coil sensitivity estimation:
+# Configure Settings
 combine_coils = true
 use_dcf = true
+
+@info "Combine coils - $combine_coils"
+
 if combine_coils
-    x = demo_recon_2d(config, 
-        @view(kx[:, 1, :]),
-        @view(ky[:, 1, :]),
-        @view(raw[:, :, 1, :, :]),
-        [64, 64]
-    );
 
-    #using ImageView # alternative to arrShow, but doesn't work with complex and CuArray data
-    # imshow(abs.(x))
+    if !isfile("coil_sens/sens.cfl")
+        @info "No coil sensitivies found - creating coil sensitivity estimation"
 
-    ReadWriteCFL.writecfl("lowres_img", ComplexF32.(x))
+        # low resolution reconstruction of echo 1 for coil sensitivity estimation:
+        x = demo_recon_2d(config,
+            @view(kx[:, 1, :]),
+            @view(ky[:, 1, :]),
+            @view(raw[:, :, 1, :, :]),
+            [64, 64]
+        )
 
-    # run external tool to estimate coil sensitivities (and interpolate to full image resolution):
-    run(`../../bart-0.9.00/bart fft -u 7 lowres_img lowres_ksp`)
-    run(`../../bart-0.9.00/bart resize -c 0 $nx 1 $ny 2 $nz lowres_ksp ksp_zerop`)
-    run(`../../bart-0.9.00/bart ecalib -t 0.01 -m1 ksp_zerop sens`)
+        ReadWriteCFL.writecfl("coil_sens/lowres_img", ComplexF32.(x))
+
+        # run external tool to estimate coil sensitivities (and interpolate to full image resolution):
+        run(`../../bart-0.9.00/bart fft -u 7 coil_sens/lowres_img coil_sens/lowres_ksp`)
+        run(`../../bart-0.9.00/bart resize -c 0 $nx 1 $ny 2 $nz coil_sens/lowres_ksp coil_sens/ksp_zerop`)
+        run(`../../bart-0.9.00/bart ecalib -t 0.01 -m1 coil_sens/ksp_zerop coil_sens/sens`)
+    end
 
     # load coil sensitivities into Julia
-    sens = ReadWriteCFL.readcfl("sens");
+    sens = ReadWriteCFL.readcfl("coil_sens/sens")
 end
 #######################################################################################################################
 

@@ -1,4 +1,4 @@
-includet("load_demo_data.jl")
+includet("../load_demo_data.jl")
 
 using ReadWriteCFL
 using DSP
