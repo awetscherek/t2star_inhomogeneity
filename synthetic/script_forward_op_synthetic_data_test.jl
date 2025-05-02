@@ -79,7 +79,7 @@ t2_star_mapping, s0, Δb0 = forward_op_synthetic_data_test(config,
 @view(ky[:, :, :, :]),
 @view(raw[:, :, :, :, :]),
 timepoints,
-fat_modulation = fat_modulation
+fat_modulation = fat_modulation,
 [nx, ny],
 combine_coils = combine_coils,
 timepoint_window_size=timepoint_window_size,

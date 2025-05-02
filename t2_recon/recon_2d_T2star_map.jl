@@ -164,9 +164,8 @@ function forward_operator(plan2, e_d, s0_d, num_timepoints, num_total_timepoints
     for t in ProgressBar(1:num_timepoints)
         t_start = (t - 1) * timepoint_window_size + 1
         t_end = min(t * timepoint_window_size, num_total_timepoints)
-        approx_t = round(Int, (t_start + t_end) / 2)
-
-        t_ms = timepoints[approx_t]
+        
+        t_ms = approximate_time(:nearest_neighbour, timepoints, t_start, t_end)
 
         sel = selection[t_start:t_end, :]
         kx_d_t = collect(kx_d[t_start:t_end, :][sel])
@@ -200,9 +199,8 @@ function jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, num_t
     for t in ProgressBar(1:num_timepoints)
         t_start = (t - 1) * timepoint_window_size + 1
         t_end = min(t * timepoint_window_size, num_total_timepoints)
-        approx_t = round(Int, (t_start + t_end) / 2)
-
-        t_ms = timepoints[approx_t]
+        
+        t_ms = approximate_time(:nearest_neighbour, timepoints, t_start, t_end)
 
         # Get the boolean mask for timepoint t (assume selection is 2D with one row per timepoint)
         sel = selection[t_start:t_end, :]
@@ -244,5 +242,23 @@ function jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, num_t
     end
 
     return g_e_total, g_s0_total
+end
+
+function approximate_time(method::Symbol = :nearest_neighbour, timepoints, t_start, t_end)
+    if method == :nearest_neighbour
+        return nearest_neighbour(timepoints, t_start, t_end)
+    elseif method == :linear_interpolation
+        return linear_interpolation(timepoints, t_start, t_end)
+    else
+        throw(ArgumentError("Unknown Method: $method"))
+    end
+end
+
+function nearest_neighbour(timepoints, t_start, t_end)
+    t_index = round(Int, (t_start + t_end) / 2)
+    return timepoints[t_index]
+end
+
+function linear_interpolation(timepoints, t_start, t_end)
 end
 
