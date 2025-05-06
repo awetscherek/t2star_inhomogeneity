@@ -102,10 +102,10 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
 
     # Initialise Operators with implicit values
-    forward_operator = (e, s0) -> forward_operator(plan2, e, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
+    forward_operator = (e, s0) -> forward_operator_impl(plan2, e, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
     timepoint_window_size, fat_modulation)
 
-    adjoint_operator = (e, s0) -> jacobian_operator(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+    adjoint_operator = (e, s0) -> adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
     timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, g_r_t, fat_modulation, nx, ny, nz, config["nchan"])
 
     r = Array{ComplexF64}(undef, size(y_d))
@@ -162,7 +162,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     1 ./ real(e_d), s0_d, Δb0
 end
 
-function forward_operator(plan2, e_d, s0_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
+function forward_operator_impl(plan2, e_d, s0_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
     c_d, timepoints, selection, timepoint_window_size, fat_modulation)
     y_list = Vector{Array{ComplexF64}}(undef, num_timepoints)
     for t in ProgressBar(1:num_timepoints)
@@ -192,7 +192,7 @@ function forward_operator(plan2, e_d, s0_d, num_timepoints, num_total_timepoints
     return y
 end
 
-function jacobian_operator(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+function adjoint_operator_impl(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
     timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, g_r_t, fat_modulation, nx, ny, nz, nchan)
 
     # Initialize sum of gradients (nx,ny,nz,nchan) prior to summing of gradients over coils
