@@ -1,6 +1,11 @@
+includet("../operators/forward_operator.jl")
+includet("../operators/adjoint_operator.jl")
+includet("../approximate_time.jl")
+
 using FINUFFT
 using Optimisers
 using ProgressBars
+using Optim
 
 function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword arguments: 
     combine_coils=false,      # whether to use coil sensitivities
@@ -93,7 +98,6 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     e_d .= complex.(r2, im)
 
     #intermediate result, required for gradient at each time point
-    g_r_t = Array{ComplexF64}(undef, nx, ny, nz * config["nchan"])
     g_e = combine_coils ? Array{ComplexF64}(undef, size(e_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"])
     g_s0 = combine_coils ? Array{ComplexF64}(undef, size(s0_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"])
 
@@ -101,20 +105,43 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
     plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
 
-    # Initialise Operators with implicit values
-    forward_operator = (e, s0) -> forward_operator_impl(plan2, e, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
-    timepoint_window_size, fat_modulation)
-
-    adjoint_operator = (e, s0) -> adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
-    timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, g_r_t, fat_modulation, nx, ny, nz, config["nchan"])
-
     r = Array{ComplexF64}(undef, size(y_d))
-    r .= forward_operator(e_d, s0_d)
 
-    r .*= dcf_d
-    r .-= y_d
+    function flatten(X,Y)
+        return vcat(vec(X), vec(Y))
+    end
 
-    obj = real(r[:]' * r[:]) / 2.0 # objective function
+    function unflatten(X)
+        N = length(X) ÷ 2
+        return reshape(X[1:N], size(e_d)), reshape(X[N+1:end], size(s0_d))
+    end
+
+    # Initialise Operators with implicit values
+    function forward_operator(x)
+        e, s0 = unflatten(x)
+        r .= forward_operator_impl(plan2, e, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
+        timepoint_window_size, fat_modulation)
+        r .*= dcf_d
+        r .-= y_d
+        obj = 1/2 * sum(abs2, r)
+        @info "obj = $obj"
+        return obj
+    end
+
+    function adjoint_operator!(storage, x)
+        e, s0 = unflatten(x)
+        g_e, g_s0 = adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+        timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, nx, ny, nz, config["nchan"])
+        storage .= flatten(g_e, g_s0)
+    end
+
+    # r .= forward_operator(flatten(e_d, s0_d))
+
+    # r .*= dcf_d
+    # r .-= y_d
+    # obj = 1/2* sum(abs2, r)
+    # obj = real(r[:]' * r[:]) / 2.0 # objective function
+    obj = forward_operator(flatten(e_d, s0_d))
 
     initial_obj = "Initial obj = $obj"
     @info initial_obj
@@ -124,32 +151,48 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     end
 
     # Optimiser
-    model = (S0=s0_d, e=e_d)
-    state = Optimisers.setup(Optimisers.AdamW(), model)
+    # model = (S0=s0_d, e=e_d)
+    # state = Optimisers.setup(Optimisers.AdamW(), model)
 
-    iter = ProgressBar(1:niter)
-    for it in iter
-        g_e, g_s0 = adjoint_operator(e_d, s0_d)
+    initial_guess = flatten(e_d, s0_d)
 
-        gradients = (S0=g_s0, e=g_e)
-        state, model = Optimisers.update(state, model, gradients)
-        s0_d, e_d = model.S0, model.e
+    # iter = ProgressBar(1:niter)
+    # for it in iter
+    #     g_e, g_s0 = adjoint_operator(e_d, s0_d)
 
-        r .= forward_operator(e_d, s0_d)
+    #     gradients = (S0=g_s0, e=g_e)
+    #     state, model = Optimisers.update(state, model, gradients)
+    #     s0_d, e_d = model.S0, model.e
 
-        r .*= dcf_d
-        r .-= y_d
+    #     r .= forward_operator(e_d, s0_d)
 
-        obj = real(r[:]' * r[:]) / 2.0
+    #     r .*= dcf_d
+    #     r .-= y_d
 
-        info = "it = $it, obj = $obj"
-        # @info info
-        open("output.txt", "a") do f
-            println(f, string(info))
-        end
+    #     obj = real(r[:]' * r[:]) / 2.0
 
-        set_description(iter, "obj: $obj")
-    end
+    #     info = "it = $it, obj = $obj"
+    #     # @info info
+    #     open("output.txt", "a") do f
+    #         println(f, string(info))
+    #     end
+
+    #     set_description(iter, "obj: $obj")
+    # end
+
+    results = optimize(forward_operator, adjoint_operator!,
+        initial_guess,
+        LBFGS(),
+        Optim.Options(
+            iterations = niter,
+            show_trace = true))
+
+    x = Optim.minimizer(results)
+
+    println("x")
+    println(size(x))
+
+    e_d, s0_d = unflatten(x)
 
     finufft_destroy!(plan1)
     finufft_destroy!(plan2)
@@ -161,108 +204,3 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     # collect results from GPU & return: 
     1 ./ real(e_d), s0_d, Δb0
 end
-
-function forward_operator_impl(plan2, e_d, s0_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
-    c_d, timepoints, selection, timepoint_window_size, fat_modulation)
-    y_list = Vector{Array{ComplexF64}}(undef, num_timepoints)
-    for t in ProgressBar(1:num_timepoints)
-        t_start = (t - 1) * timepoint_window_size + 1
-        t_end = min(t * timepoint_window_size, num_total_timepoints)
-        
-        t_ms = approximate_time(timepoints, t_start, t_end, :nearest_neighbour)
-
-        sel = selection[t_start:t_end, :]
-        kx_d_t = collect(kx_d[t_start:t_end, :][sel])
-        ky_d_t = collect(ky_d[t_start:t_end, :][sel])
-
-        finufft_setpts!(plan2, kx_d_t, ky_d_t)
-
-        w_d_t = s0_d .* exp.(-t_ms .* e_d)
-
-        y_t = finufft_exec(plan2, w_d_t .* c_d)
-
-        y_list[t] = y_t
-    end
-    y = vcat(y_list...)
-
-    if !isnothing(fat_modulation)
-        y .*= fat_modulation
-    end
-
-    return y
-end
-
-function adjoint_operator_impl(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
-    timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, g_r_t, fat_modulation, nx, ny, nz, nchan)
-
-    # Initialize sum of gradients (nx,ny,nz,nchan) prior to summing of gradients over coils
-    g_s0_total = zeros(ComplexF64, nx, ny, nz, nchan)
-    g_e_total = zeros(ComplexF64, nx, ny, nz, nchan)
-
-    start_idx = 1
-    for t in ProgressBar(1:num_timepoints)
-        t_start = (t - 1) * timepoint_window_size + 1
-        t_end = min(t * timepoint_window_size, num_total_timepoints)
-        
-        t_ms = approximate_time(timepoints, t_start, t_end, :nearest_neighbour)
-
-        # Get the boolean mask for timepoint t (assume selection is 2D with one row per timepoint)
-        sel = selection[t_start:t_end, :]
-        npoints = sum(sel)
-
-        # Extract the segment of the residual corresponding to timepoint t.
-        r_t = r[start_idx:start_idx+npoints-1, :]
-        fat_modulation_t = !isnothing(fat_modulation) ? view(fat_modulation,start_idx:start_idx+npoints-1) : 1.0
-
-        dcf_t = use_dcf ? view(dcf_d, start_idx:start_idx+npoints-1) : 1.0
-
-        kx_d_t = collect(kx_d[t_start:t_end, :][sel])
-        ky_d_t = collect(ky_d[t_start:t_end, :][sel])
-
-        finufft_setpts!(plan1, kx_d_t, ky_d_t)
-
-        finufft_exec!(plan1, r_t .* dcf_t .* conj.(fat_modulation_t), g_r_t)
-
-        if combine_coils
-            g_r_result_t = reshape(g_r_t, size(c_d)) .* conj(c_d)
-        else
-            g_r_result_t = reshape(g_r_t, size(e_d))
-        end
-
-        conj_s0 = conj.(s0_d)
-        conj_exp_term = conj.(exp.(-t_ms .* e_d))
-
-        g_e_total .+= (-conj_s0 .* t_ms .* conj_exp_term) .* g_r_result_t
-        g_s0_total .+= conj_exp_term .* g_r_result_t
-
-        #TODO: Maybe put the sum of gradients in for loop instead of at end
-
-        start_idx += npoints
-    end
-
-    if combine_coils
-        g_e_total = dropdims(sum(g_e_total, dims=4), dims=4)
-        g_s0_total = dropdims(sum(g_s0_total, dims=4), dims=4)
-    end
-
-    return g_e_total, g_s0_total
-end
-
-function approximate_time(timepoints, t_start, t_end, method::Symbol = :nearest_neighbour)
-    if method == :nearest_neighbour
-        return nearest_neighbour(timepoints, t_start, t_end)
-    # elseif method == :linear_interpolation
-    #     return linear_interpolation(timepoints, t_start, t_end)
-    else
-        throw(ArgumentError("Unknown Method: $method"))
-    end
-end
-
-function nearest_neighbour(timepoints, t_start, t_end)
-    t_index = round(Int, (t_start + t_end) / 2)
-    return timepoints[t_index]
-end
-
-function linear_interpolation(timepoints, t_start, t_end)
-end
-

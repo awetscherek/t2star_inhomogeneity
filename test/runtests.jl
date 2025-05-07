@@ -1,7 +1,8 @@
+includet("../operators/forward_operator.jl")
+includet("../operators/adjoint_operator.jl")
+includet("utils.jl")
 includet("../load_demo_data.jl")
-includet("recon_2d_T2star_map.jl")
 includet("../image_recon/image_recon_2d.jl")
-includet("../fat_modulation.jl")
 
 config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
@@ -35,7 +36,7 @@ nz = 32 #number of slices
 
 # Configure Settings
 combine_coils = true
-use_dcf = false
+use_dcf = true
 use_fat_modulation = false
 
 @info "Combine coils - $combine_coils"
@@ -73,33 +74,71 @@ timepoint_window_size = 536
 
 timepoints = vec(time_since_last_rf)
 
-if use_fat_modulation
-    fat_modulation = calculate_fat_modulation(time_since_last_rf)
+@assert timepoint_window_size <= nkx "The timepoint window size cannot be larger than nkx"
+
+# this preconditioner could help speed up convergence:
+dcf = use_dcf ? abs.(-size(ky, 1)/2+0.5:size(ky, 1)/2) : 1.0
+dcf = dcf ./ maximum(dcf)
+
+c_d = combine_coils ? sens : [1.0] # this shouldn't make a copy of sens
+
+# use only raw data from 1st echo (most signal), normalize non-uniform frequency on pixel size (FOV/n)
+kx_d = reshape(permutedims(kx, [2 1 3 4]) * config["FOVx"] / nx * 2 * pi, :, nky)
+ky_d = reshape(permutedims(ky, [2 1 3 4]) * config["FOVy"] / ny * 2 * pi, :, nky)
+
+# and use only data from central k-space region:
+selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi
+
+# this is the raw data from which we want to reconstruct the coil images
+#(num_timepoints, ky, nz * nchan)
+
+dcf_y = use_dcf ? reshape(sqrt.(dcf), 1, size(dcf, 1), 1, 1, 1) : dcf
+
+y_d = reshape(ComplexF64.(permutedims(raw, [3 1 5 4 2])) .* dcf_y, config["necho"] * nkx, :, nz * config["nchan"])[selection, :]
+
+dcf_d = use_dcf ? repeat(sqrt.(dcf), outer=(size(ky, 2), size(ky, 3)))[selection] : 1.0
+
+num_total_timepoints = config["necho"] * nkx
+num_timepoints = ceil(Int, num_total_timepoints / timepoint_window_size)
+
+# plan NUFFTs:
+plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
+plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)     # type 2 (forward transform)
+
+r = Array{ComplexF64}(undef, size(y_d))
+
+function flatten(X,Y)
+    return vcat(vec(X), vec(Y))
 end
 
-# full-scale reconstruction (can loop over echoes):
+function unflatten(X)
+    N = length(X) ÷ 2
+    return reshape(X[1:N], size(e_d)), reshape(X[N+1:end], size(s0_d))
+end
 
-t2_star_mapping = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
-s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
-Δb0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
+# Initialise Operators with implicit values
+function forward_operator(x)
+    e, s0 = unflatten(x)
+    r .= forward_operator_impl(plan2, e, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
+    timepoint_window_size, fat_modulation)
+    r .*= dcf_d
+    r .-= y_d
+    obj = 1/2 * sum(abs2, r)
+    @info "obj = $obj"
+    return obj
+end
 
-t2_star_mapping, s0, Δb0 = recon_2d_t2star_map(config,
-    @view(kx[:, :, :, :]),
-    @view(ky[:, :, :, :]),
-    @view(raw[:, :, :, :, :]),
-    timepoints,
-    fat_modulation=use_fat_modulation ? fat_modulation : nothing,
-    [nx, ny],
-    combine_coils=combine_coils,
-    timepoint_window_size=timepoint_window_size,
-    sens=combine_coils ? sens : nothing,
-    use_dcf=use_dcf, # for some reason this seems to introduce artifacts into the image ...
-);
+function adjoint_operator!(storage, x)
+    e, s0 = unflatten(x)
+    g_e, g_s0 = adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+    timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, nx, ny, nz, config["nchan"])
+    storage .= flatten(g_e, g_s0)
+end
 
-comb = combine_coils ? "" : "_no_combine_coils"
-dcf = use_dcf ? "_dcf" : ""
-fat_mod = use_fat_modulation ? "_fatmod" : ""
-
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/t2_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(t2_star_mapping))
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/s0_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(s0))
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/delta_b0_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(Δb0))
+check_objective_gradient_consistency(
+    operator::Operator{PT},
+    forward_dimensions::Tuple{Vararg{Int}},
+    rtol::Float32=0.05f0,
+    epsilon::Float64=5e-2;
+    repetitions::Int=30,
+)
