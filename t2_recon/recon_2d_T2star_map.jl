@@ -7,6 +7,8 @@ using Optimisers
 using ProgressBars
 using Optim
 
+const γ = 2 * π * 42.576e6
+
 function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword arguments: 
     combine_coils=false,      # whether to use coil sensitivities
     sens=nothing,             # coil sensitivities ...
@@ -41,6 +43,20 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     # and use only data from central k-space region:
     selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi
 
+    dcf_y = use_dcf ? reshape(sqrt.(dcf), 1, size(dcf, 1), 1, 1, 1) : dcf
+    dcf_d = use_dcf ? repeat(sqrt.(dcf), outer=(size(ky, 2), size(ky, 3)))[selection] : 1.0
+
+    y_d = reshape(ComplexF64.(permutedims(raw, [3 1 5 4 2])) .* dcf_y, config["necho"] * nkx, :, nz * config["nchan"])[selection, :]
+
+    num_total_timepoints = config["necho"] * nkx
+    num_timepoints = ceil(Int, num_total_timepoints / timepoint_window_size)
+
+    # Reshape fat modulation so it can be easily multiplied in k-space
+    if !isnothing(fat_modulation)
+        fat_modulation = repeat(vec(fat_modulation), 1, nky)[selection]
+        fat_modulation .+= 1
+    end
+
     # Considering the phase equation:
     # S(t) = S(0) .* exp(i .* γ .* Δb0 .* t - (t / T2*) )
     # Consider the exponent (t / T2*) - i .* γ .* Δb0 .* t
@@ -54,34 +70,10 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     e_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
     s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
 
-    # this is the raw data from which we want to reconstruct the coil images
-    #(num_timepoints, ky, nz * nchan)
-
-    dcf_y = use_dcf ? reshape(sqrt.(dcf), 1, size(dcf, 1), 1, 1, 1) : dcf
-
-    y_d = reshape(ComplexF64.(permutedims(raw, [3 1 5 4 2])) .* dcf_y, config["necho"] * nkx, :, nz * config["nchan"])[selection, :]
-
-    dcf_d = use_dcf ? repeat(sqrt.(dcf), outer=(size(ky, 2), size(ky, 3)))[selection] : 1.0
-
-    num_total_timepoints = config["necho"] * nkx
-    num_timepoints = ceil(Int, num_total_timepoints / timepoint_window_size)
-
-    # Reshape fat modulation so it can be easily multiplied in k-space
-    if !isnothing(fat_modulation)
-        fat_modulation = repeat(vec(fat_modulation), 1, nky)[selection]
-        fat_modulation .+= 1
-    end
-
-    γ = 2 * π * 42.576e6
-
-    # Initial value of exponent(e) and S0:
-    init_prediction_dcf = true
-    ip_dcf = init_prediction_dcf ? "_dcf" : ""
-
     # Take initial value of S0 to be reconstruction
     # s0_d .= 0.0;
-    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x$ip_dcf")[:, :, :, 1])
-    # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0$ip_dcf"));
+    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x_dcf")[:, :, :, 1])
+    # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf"));
 
     r2 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
     Δb0 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
@@ -98,8 +90,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     e_d .= complex.(r2, im)
 
     #intermediate result, required for gradient at each time point
-    g_e = combine_coils ? Array{ComplexF64}(undef, size(e_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"])
-    g_s0 = combine_coils ? Array{ComplexF64}(undef, size(s0_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"])
+    # g_e = combine_coils ? Array{ComplexF64}(undef, size(e_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"])
+    # g_s0 = combine_coils ? Array{ComplexF64}(undef, size(s0_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"])
 
     # plan NUFFTs:
     plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
