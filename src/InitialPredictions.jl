@@ -1,3 +1,3 @@
-include("initial_prediction/gen_b0_prediction.jl")
-include("initial_prediction/gen_s0_prediction.jl")
-include("initial_prediction/initialise_params.jl")
+include("InitialPredictions/gen_b0_prediction.jl")
+include("InitialPredictions/gen_s0_prediction.jl")
+include("InitialPredictions/initialise_params.jl")
