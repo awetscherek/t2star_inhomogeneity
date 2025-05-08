@@ -1,6 +1,15 @@
-# Improving T2* Estimation for Detection of Tumour Hypoxia in an MR-Linac
+# DqT2
+by Dominic Qu
 
-An Imperial College Department of Computing MEng Individual Project with the Institute of Cancer Research by Dominic Qu
+This package includes forward and jacobian operators for direct reconstruction of T2* in K-space, as well as an iterative algorithm utilising the operators.
+
+The operators take fat modulation and \Delta \omega into account.
+
+## Related research
+
+'Improving T2* Estimation for Detection of Tumour Hypoxia in an MR-Linac' by Dominic Qu
+
+An Imperial College Department of Computing MEng Individual Project with the Institute of Cancer Research
 
 Supervisors: Andreas Wetscherek, Wayne Luk
 
@@ -30,17 +39,21 @@ If you have access to an NVIDIA GPU with > 16GB, you could try out the cuda scri
 ]add CUDA
 ``` 
 
-The script uses the includet function from the Revise package (which usually is automatically loaded in the REPL, if it is a project dependency). To load it manually:
-```julia
-using Revise
-```
-
-Then you should be set up to work through the scripts - I made two examples, one using a 3D NUFFT with CUDA, one with a 2D NUFFT without CUDA.
+## Viewing Reconstructions
 
 The best viewer that I've come across for complex-valued multi-dimensional data is the MATLAB tool arrShow (https://github.com/tsumpf/arrShow, command `as`). BART contains readcfl.m and writecfl.m to load .cfl data into MATLAB and display it.
 
-For this demo, I use a relatively simple reconstruction with just a normal gradient descent algorithm... (which works with additional regularization, too). A faster convergence could maybe be achieved with other algorithms, such as "minres".
+## Demos
 
-For the relaxation model, `time_since_last_rf` is the time to consider in the signal evolution.
+### Real Data
 
-Have fun!
+`demos/T2Recon/RealData/script_T2star_2d_mapping.jl` - Reconstructs real data 
+
+### Synthetic Data
+
+#### Evaluation of Forward Operator
+`demos/Synthetic/ForwardOp/script_forward_op.jl` - Reconstructs k-space from generated T2* and S0* data 
+
+#### Evaluation of Reconstruction Algorithm
+`demos/Synthetic/T2Recon/script_t2_recon.jl` - Iteratively reconstructs T2*, B0 and S0 mappings based on synthetic raw data.
+Tests are done, varying the noise and the initial prediction of this.
