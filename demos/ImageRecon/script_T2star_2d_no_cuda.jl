@@ -4,7 +4,7 @@ using DqT2
 combine_coils = true
 use_dcf = true
 
-raw, kx, ky, kz, config, sens, timepoints = load_and_process_data(combine_coils)
+raw, kx, ky, kz, config, sens, timepoints, _ = load_and_process_data(combine_coils, false)
 
 #######################################################################################################################
 
@@ -28,4 +28,3 @@ comb = combine_coils ? "" : "_no_combine_coils"
 dcf = use_dcf ? "_dcf" : ""
 
 ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Recon/2d/x$comb$dcf", ComplexF32.(x))
-  

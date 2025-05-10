@@ -99,7 +99,6 @@ function adjoint_operator_impl(plan1, r, r2_d, b0_d, s0_d, dcf_d, combine_coils,
 
         # Extract the segment of the residual corresponding to timepoint t.
         r_t = r[start_idx:start_idx+npoints-1, :]
-        fat_modulation_t = !isnothing(fat_modulation) ? view(fat_modulation,start_idx:start_idx+npoints-1) : 1.0
 
         dcf_t = use_dcf ? view(dcf_d, start_idx:start_idx+npoints-1) : 1.0
 
@@ -108,7 +107,7 @@ function adjoint_operator_impl(plan1, r, r2_d, b0_d, s0_d, dcf_d, combine_coils,
 
         finufft_setpts!(plan1, kx_d_t, ky_d_t)
 
-        finufft_exec!(plan1, r_t .* dcf_t .* conj.(fat_modulation_t), g_r_t)
+        finufft_exec!(plan1, r_t .* dcf_t, g_r_t)
 
         if combine_coils
             g_r_result_t = reshape(g_r_t, size(c_d)) .* conj(c_d)
@@ -122,8 +121,6 @@ function adjoint_operator_impl(plan1, r, r2_d, b0_d, s0_d, dcf_d, combine_coils,
         g_r2_total .+= real.((- conj_s0 .* t_ms .* conj_exp_term) .* g_r_result_t)
         g_b0_total .+= real.((- im .* γ .* t_ms .* conj_s0 .* conj_exp_term) .* g_r_result_t)
         g_s0_total .+= conj_exp_term .* g_r_result_t
-
-        #TODO: Maybe put the sum of gradients in for loop instead of at end
 
         start_idx += npoints
     end

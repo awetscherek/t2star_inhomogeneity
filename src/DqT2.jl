@@ -15,7 +15,9 @@ using FFTW
 using Mmap
 using MAT
 
-const γ = 2 * π * 42.576e6
+export ReadWriteCFL
+
+const γ = 2 * π * 42.576
 #should this be e6?
 
 # Resolutions for image reconstruction. 
@@ -30,7 +32,7 @@ include("fat_modulation.jl")
 
 include("Utils/Utils.jl")
 
-export load_and_process_data
+export load_and_process_data, preprocess_data
 
 include("ImageRecon.jl")
 

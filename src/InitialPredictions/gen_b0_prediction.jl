@@ -11,6 +11,7 @@ function gen_b0_prediction()
     x .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x$comb$dcf")
 
     time_since_last_rf = Float64.(time_since_last_rf)
+    time_since_last_rf .*= 1e-3
     echo_times = vec(time_since_last_rf[268,:,1,1])
 
     # Mask values lower than a threshold of magnitude

@@ -4,7 +4,7 @@ using DqT2
 combine_coils = true
 use_dcf = true
 
-raw, kx, ky, kz, config, sens, timepoints = load_and_process_data(combine_coils)
+raw, kx, ky, kz, config, sens, timepoints, _ = load_and_process_data(combine_coils, false)
 
 #######################################################################################################################
 

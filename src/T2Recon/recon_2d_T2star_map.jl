@@ -32,7 +32,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     # ------------------------------------------
     
     r2_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
-    b0_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Floate64}(undef, nx, ny, nz, config["nchan"])
+    b0_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
 
     if !isnothing(fat_modulation)
         s0_fat_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
@@ -76,7 +76,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     function forward_operator(x)
         if !isnothing(fat_modulation)
             r2, b0, fat,water = unflatten(x)
-            r .= forward_operator_impl(plan2, r2, b0, fat,water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
+            r .= forward_operator_impl(plan2, r2, b0, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
             timepoint_window_size, fat_modulation)
         else
             r2, b0, s0 = unflatten(x)
@@ -157,19 +157,30 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
         false
     end
 
+    # results = optimize(forward_operator, adjoint_operator!,
+    #     Lower,
+    #     Upper,
+    #     initial_guess,
+    #     Fminbox(LBFGS()),
+    #     Optim.Options(
+    #         outer_iterations = 5,
+    #         callback = print_iter,
+    #         iterations = niter))
+
     results = optimize(forward_operator, adjoint_operator!,
-        Lower,
-        Upper,
         initial_guess,
-        Fminbox(LBFGS()),
+        LBFGS(),
         Optim.Options(
-            outer_iterations = 5,
-            callback = print_iter,
+            show_trace=true,
             iterations = niter))
 
     x = Optim.minimizer(results)
 
-    r2_d, b0_d, s0_d = unflatten(x)
+    if !isnothing(fat_modulation)
+        r2_d, b0_d, s0_fat_d, s0_water_d = unflatten(x)
+    else
+        r2_d, b0_d, s0_d = unflatten(x)
+    end
 
     finufft_destroy!(plan1)
     finufft_destroy!(plan2)
@@ -178,6 +189,10 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     # Δb0 = - Im{e} ./ γ
     # Δb0 = imag(e_d) ./ (-γ)
 
-    # collect results from GPU & return: 
-    1 ./ r2_d, s0_d, b0_d
+    # collect results from GPU & return:
+    if !isnothing(fat_modulation) 
+        1 ./ r2_d, s0_fat_d, s0_water_d, b0_d
+    else
+        1 ./ r2_d, nothing, s0_d, b0_d
+    end
 end

@@ -10,12 +10,7 @@ use_fat_modulation = false
 # nkx (536) - Echo time of each assumed to be the timepoint
 timepoint_window_size = 536
 
-raw, kx, ky, kz, config, sens, timepoints = load_and_process_data(combine_coils)
-
-if use_fat_modulation
-    @info "Using Fat Modulation"
-    fat_modulation = calculate_fat_modulation(time_since_last_rf)
-end
+raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation)
 
 t2_star_mapping = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);

@@ -1,6 +1,6 @@
-using Test
-
 using DqT2
+using Test
+using FINUFFT
 
 include("forward_op_consistency.jl")
 include("zero_filled_guess.jl")
@@ -13,7 +13,10 @@ combine_coils = true
 use_dcf = true
 use_fat_modulation = false
 
-raw, kx, ky, kz, config, sens, timepoints = load_and_process_data(combine_coils)
+raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation)
+
+dims = [nx, ny]
+tol=1e-9
 
 #Precision of approximation of timepoints
 # 1 - No approximation (NUFFT for every time point)
@@ -39,7 +42,7 @@ timepoint_window_size = 536
     ky,
     timepoint_window_size,
     use_dcf,
-    nothing #fatmod
+    fat_modulation
     )
 
 # plan NUFFTs:
@@ -83,22 +86,28 @@ function forward_operator(r2,b0,s0)
     return obj
 end
 
-function adjoint_operator!(r2, b0, fat, water)
-    return adjoint_operator_impl(plan1, r, r2, b0, fat, water, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
-    timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, nx, ny, nz, config["nchan"])
-end
+# function adjoint_operator!(r2, b0, fat, water)
+#     return adjoint_operator_impl(plan1, r, r2, b0, fat, water, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+#     timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, nx, ny, nz, config["nchan"])
+# end
 
-function adjoint_operator!(r2, b0, s0)
+function adjoint_operator(r2, b0, s0)
     return adjoint_operator_impl(plan1, r, r2, b0, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
     timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, nx, ny, nz, config["nchan"])
 end
 
-zero_filled_guess(forward_operator)
+zero_filled_guess(combine_coils, config, forward_operator)
 
-# check_objective_gradient_consistency(
-#     operator::Operator{PT},
-#     forward_dimensions::Tuple{Vararg{Int}},
-#     rtol::Float32=0.05f0,
-#     epsilon::Float64=5e-2;
-#     repetitions::Int=30,
-# )
+@testset "Forward/Adjoint gradient consistency" begin
+    res = (nx, ny, nz)
+    check_forward_adjoint_gradient_consistency(
+      forward_operator,
+      adjoint_operator,
+      res,   # r2
+      res,   # b0
+      res;   # s0
+      rtol=0.05,
+      ε=5e-2,
+      repetitions=30,
+    )
+end

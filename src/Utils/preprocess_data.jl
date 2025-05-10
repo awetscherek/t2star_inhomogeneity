@@ -1,10 +1,18 @@
 function preprocess_data(config, raw, combine_coils, sens, kx, ky, timepoint_window_size, use_dcf, fat_modulation)
     @assert !combine_coils || !isnothing(sens) "if we want to combine coils we need coil sensitivities ..."
 
+    if length(size(kx)) == 3
+        kx = kx[:, :, :, :]
+    end
+
+    if length(size(ky)) == 3
+        ky = ky[:, :, :, :]
+    end
+
     #kx and ky should be of shape
     #(269,8,536)
     # nky => necho => nkx
-    nkx, _, nky, _ = size(kx)
+    nkx, _, nky= size(kx)
 
     @assert timepoint_window_size <= nkx "The timepoint window size cannot be larger than nkx"
 

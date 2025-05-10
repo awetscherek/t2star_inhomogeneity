@@ -1,13 +1,13 @@
 function initialise_params(r2_d, b0_d, s0_d)
     r2_d .= 1 / 50.0
 
-    b0_d .= 0
+    # b0_d .= 0
     
-    # if !isfile("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf.cfl")
-    #     @info "No B0 prediction detected - Generating prediction"
-    #     gen_b0_prediction()
-    # end
-    # b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf"))
+    if !isfile("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf.cfl")
+        @info "No B0 prediction detected - Generating prediction"
+        gen_b0_prediction()
+    end
+    b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf"))
 
     # s0_d .= 0.0;
     s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x_dcf")[:, :, :, 1])
@@ -22,12 +22,12 @@ end
 function initialise_params(r2_d, b0_d, s0_fat, s0_water)
     r2_d .= 1 / 50.0
 
-    b0_d .= 0
-    # if !isfile("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf.cfl")
-    #     @info "No B0 prediction detected - Generating prediction"    
-    #     gen_b0_prediction()
-    # end
-    # b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf"))
+    # b0_d .= 0
+    if !isfile("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf.cfl")
+        @info "No B0 prediction detected - Generating prediction"    
+        gen_b0_prediction()
+    end
+    b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf"))
 
     
     s0_fat .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x_dcf")[:, :, :, 1]) ./ 2
