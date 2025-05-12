@@ -31,8 +31,10 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
 
     # ------------------------------------------
     
-    r2_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
-    b0_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
+    # r2_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
+    # b0_d = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"])
+
+    e_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
 
     if !isnothing(fat_modulation)
         s0_fat_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
@@ -41,8 +43,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
         initialise_params(r2_d,b0_d, s0_fat_d, s0_water_d)
     else
         s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
-
-        initialise_params(r2_d,b0_d, s0_d)
+        initialise_params(e_d, s0_d)
+        # initialise_params(r2_d,b0_d, s0_d)
     end
 
     # plan NUFFTs:
@@ -56,130 +58,81 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
         return vcat(vec(r2), vec(b0), vec(s0_r), vec(s0_i))
     end
 
+    function flatten(e, s0)
+        return vcat(vec(e), vec(s0))
+    end
+
     function flatten(r2,b0, fat,water)
         fat_r, fat_i = real(fat), imag(fat)
         water_r, water_i = real(water), imag(water)
         return vcat(vec(r2), vec(b0), vec(fat_r), vec(fat_i), vec(water_r), vec(water_i))
     end
 
+    # function unflatten(X)
+    #     if !isnothing(fat_modulation)
+    #         N = length(X) ÷ 6
+    #         return reshape(X[1:N], size(r2_d)), reshape(X[N+1:2*N], size(b0_d)), Complex.(reshape(X[2*N+1:3*N], size(s0_fat_d)), reshape(X[3*N+1:4*N], size(s0_fat_d))), Complex.(reshape(X[4*N+1:5*N], size(s0_water_d)), reshape(X[5*N+1:end], size(s0_water_d)))
+    #     else
+    #         N = length(X) ÷ 4
+    #         return reshape(X[1:N], size(r2_d)), reshape(X[N+1:2*N], size(b0_d)), Complex.(reshape(X[2*N+1:3*N], size(s0_d)), reshape(X[3*N+1:end], size(s0_d)))
+    #     end
+    # end
+
     function unflatten(X)
-        if !isnothing(fat_modulation)
-            N = length(X) ÷ 6
-            return reshape(X[1:N], size(r2_d)), reshape(X[N+1:2*N], size(b0_d)), Complex.(reshape(X[2*N+1:3*N], size(s0_fat_d)), reshape(X[3*N+1:4*N], size(s0_fat_d))), Complex.(reshape(X[4*N+1:5*N], size(s0_water_d)), reshape(X[5*N+1:end], size(s0_water_d)))
-        else
-            N = length(X) ÷ 4
-            return reshape(X[1:N], size(r2_d)), reshape(X[N+1:2*N], size(b0_d)), Complex.(reshape(X[2*N+1:3*N], size(s0_d)), reshape(X[3*N+1:end], size(s0_d)))
-        end
+        N = length(X) ÷ 2
+        return reshape(X[1:N], size(e_d)), reshape(X[N+1:end], size(s0_d))
     end
 
     # Initialise Operators with implicit values
-    function forward_operator(x)
-        if !isnothing(fat_modulation)
-            r2, b0, fat,water = unflatten(x)
-            r .= forward_operator_impl(plan2, r2, b0, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
-            timepoint_window_size, fat_modulation)
-        else
-            r2, b0, s0 = unflatten(x)
-            r .= forward_operator_impl(plan2, r2, b0, nothing, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
-            timepoint_window_size, fat_modulation)
-        end
+    function forward_operator(e, fat, water)
+        r .= forward_operator_impl(plan2, e, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
+        timepoint_window_size, fat_modulation)
 
+    end
+
+    function forward_operator(e,s0)
+        return forward_operator_impl(plan2, e, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
+        timepoint_window_size, fat_modulation)
+    end
+
+    function adjoint_operator!(e, fat, water)
+        return adjoint_operator_impl(plan1, r, e, fat, water, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+        timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, nx, ny, nz, config["nchan"])
+        storage .= flatten(g_r2, g_b0, g_fat_s0, g_water_s0)
+    end
+
+    function adjoint_operator(e, s0)
+        return adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+        timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, nx, ny, nz, config["nchan"])
+    end
+
+    if !isnothing(fat_modulation)
+        obj = forward_operator(e, s0_fat_d, s0_water_d)
+    else
+        obj = forward_operator(e_d, s0_d)
+    end
+
+    # Optimiser
+    model = (S0 = s0_d, e = e_d)
+    state = Optimisers.setup(Optimisers.AdamW(), model)
+
+    for it = 1:niter        
+        g_e, g_s0 = adjoint_operator(e_d, s0_d)
+
+        gradients = (S0 = g_s0, e = g_e)
+        state, model = Optimisers.update(state, model, gradients)
+        s0_d, e_d = model.S0, model.e
+
+        r .= forward_operator(e_d, s0_d)
         r .*= dcf_d
         r .-= y_d
         obj = 1/2 * sum(abs2, r)
-        @info "obj = $obj"
-        return obj
-    end
 
-    function adjoint_operator!(storage, x)
-        if !isnothing(fat_modulation)
-            r2, b0, fat, water = unflatten(x)
-            g_r2, g_b0, g_fat_s0, g_water_s0 = adjoint_operator_impl(plan1, r, r2, b0, fat, water, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
-            timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, nx, ny, nz, config["nchan"])
-            storage .= flatten(g_r2, g_b0, g_fat_s0, g_water_s0)
-        else
-            r2, b0, s0 = unflatten(x)
-            g_r2, g_b0, g_s0 = adjoint_operator_impl(plan1, r, r2, b0, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
-            timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, nx, ny, nz, config["nchan"])
-            storage .= flatten(g_r2, g_b0, g_s0)
+        info="it = $it, obj = $obj"
+        @info info
+        open("output.txt", "a") do f
+            println(f, string(info))
         end
-    end
-
-    if !isnothing(fat_modulation)
-        obj = forward_operator(flatten(r2_d, b0_d, s0_fat_d, s0_water_d))
-    else
-        obj = forward_operator(flatten(r2_d, b0_d, s0_d))
-    end
-
-    initial_obj = "Initial obj = $obj"
-    @info initial_obj
-
-    open("output.txt", "a") do f
-        println(f, string(initial_obj))
-    end
-
-    if !isnothing(fat_modulation)
-        initial_guess = flatten(r2_d, b0_d, s0_fat_d, s0_water_d)
-    else
-        initial_guess = flatten(r2_d, b0_d, s0_d)
-    end
-
-    N = nx * ny * nz
-
-    if !isnothing(fat_modulation)
-        Lower = Vector{Float64}(undef, 6N)
-        Upper = Vector{Float64}(undef, 6N)
-    else
-        Lower = Vector{Float64}(undef, 4N)
-        Upper = Vector{Float64}(undef, 4N)
-    end
-
-    Lower[1:N] .= 1/500 # R2 Lower bound
-    Lower[N+1:2N] .= -1e-7 # B0 Lower bound
-    Lower[2N+1:3N] .= -Inf # S0 Real Lower bound
-    Lower[3N+1:4N] .= -Inf # S0 Imaginary Lower bound
-
-    Upper[1:N] .= 1.0 # R2 Upper bound
-    Upper[N+1:2N] .= 1e-7 # B0 Upper bound
-    Upper[2N+1:3N] .= Inf # S0 Real Upper bound
-    Upper[3N+1:4N] .= Inf # S0 Imaginary Upper bound
-
-    if !isnothing(fat_modulation)
-        Lower[4N+1:5N] .= -Inf # S0 Real Lower bound
-        Lower[5N+1:6N] .= -Inf # S0 Imaginary Lower bound
-
-        Upper[4N+1:5N] .= Inf # S0 Real Upper bound
-        Upper[5N+1:6N] .= Inf # S0 Imaginary Upper bound
-    end
-
-    function print_iter(x)
-        println("*Iteration:", x.iteration)
-        false
-    end
-
-    # results = optimize(forward_operator, adjoint_operator!,
-    #     Lower,
-    #     Upper,
-    #     initial_guess,
-    #     Fminbox(LBFGS()),
-    #     Optim.Options(
-    #         outer_iterations = 5,
-    #         callback = print_iter,
-    #         iterations = niter))
-
-    results = optimize(forward_operator, adjoint_operator!,
-        initial_guess,
-        LBFGS(),
-        Optim.Options(
-            show_trace=true,
-            iterations = niter))
-
-    x = Optim.minimizer(results)
-
-    if !isnothing(fat_modulation)
-        r2_d, b0_d, s0_fat_d, s0_water_d = unflatten(x)
-    else
-        r2_d, b0_d, s0_d = unflatten(x)
     end
 
     finufft_destroy!(plan1)
@@ -187,12 +140,12 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
 
     # Im{e} = - γ .* Δb0
     # Δb0 = - Im{e} ./ γ
-    # Δb0 = imag(e_d) ./ (-γ)
+    b0 = imag(e_d) ./ (-γ)
 
     # collect results from GPU & return:
     if !isnothing(fat_modulation) 
         1 ./ r2_d, s0_fat_d, s0_water_d, b0_d
     else
-        1 ./ r2_d, nothing, s0_d, b0_d
+        1 ./ real(e_d), nothing, s0_d, b0
     end
 end

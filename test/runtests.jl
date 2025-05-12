@@ -86,6 +86,17 @@ function forward_operator(r2,b0,s0)
     return obj
 end
 
+function forward_operator_e(e,s0)
+    r .= forward_operator_impl(plan2, e, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
+    timepoint_window_size, fat_modulation)
+    
+    r .*= dcf_d
+    r .-= y_d
+    obj = 1/2 * sum(abs2, r)
+    @info "obj = $obj"
+    return obj
+end
+
 # function adjoint_operator!(r2, b0, fat, water)
 #     return adjoint_operator_impl(plan1, r, r2, b0, fat, water, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
 #     timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, nx, ny, nz, config["nchan"])
@@ -96,15 +107,33 @@ function adjoint_operator(r2, b0, s0)
     timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, nx, ny, nz, config["nchan"])
 end
 
-zero_filled_guess(combine_coils, config, forward_operator)
+function adjoint_operator_e(e, s0)
+    return adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+    timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, nx, ny, nz, config["nchan"])
+end
+
+# zero_filled_guess(combine_coils, config, forward_operator)
+
+# @testset "Forward/Adjoint gradient consistency" begin
+#     res = (nx, ny, nz)
+#     check_forward_adjoint_gradient_consistency(
+#       forward_operator,
+#       adjoint_operator,
+#       res,   # r2
+#       res,   # b0
+#       res;   # s0
+#       rtol=0.05,
+#       ε=5e-2,
+#       repetitions=30,
+#     )
+# end
 
 @testset "Forward/Adjoint gradient consistency" begin
     res = (nx, ny, nz)
-    check_forward_adjoint_gradient_consistency(
-      forward_operator,
-      adjoint_operator,
+    check_forward_adjoint_gradient_consistency_e(
+      forward_operator_e,
+      adjoint_operator_e,
       res,   # r2
-      res,   # b0
       res;   # s0
       rtol=0.05,
       ε=5e-2,

@@ -12,6 +12,7 @@ function gen_s0_prediction()
     # s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
     echo_times = time_since_last_rf[268,:,1,1]
+    # echo_times .*= 1e-3
 
     # println("Echo times: ", echo_times)
 
