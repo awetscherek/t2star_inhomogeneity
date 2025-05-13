@@ -91,7 +91,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     else
         model = (S0 = s0_d, e = e_d)
     end
-    state = Optimisers.setup(Optimisers.AdaGrad(eta=0.1), model)
+    state = Optimisers.setup(Optimisers.AdaGrad(), model)
 
     for it = 1:niter
         if !isnothing(fat_modulation)

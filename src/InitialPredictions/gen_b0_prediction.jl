@@ -13,7 +13,7 @@ function gen_b0_prediction()
     time_since_last_rf = Float64.(time_since_last_rf)
 
     echo_times = vec(time_since_last_rf[268,:,1,1])
-    echo_times .*= 1e-3
+    # echo_times .*= 1e-3
 
     # Mask values lower than a threshold of magnitude
     mag = mean(abs.(x), dims=4)   # → size (nx,ny,nz)
