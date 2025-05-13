@@ -3,7 +3,7 @@ using DqT2
 # Configure Settings
 combine_coils = true
 use_dcf = true
-use_fat_modulation = true
+use_fat_modulation = false
 
 #Precision of approximation of timepoints
 # 1 - No approximation (NUFFT for every time point)

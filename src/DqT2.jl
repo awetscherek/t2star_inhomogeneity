@@ -17,7 +17,7 @@ using MAT
 
 export ReadWriteCFL
 
-const γ = 2 * π * 42.576
+const γ = 2 * π * 42.576e6
 #should this be e6?
 
 # Resolutions for image reconstruction. 

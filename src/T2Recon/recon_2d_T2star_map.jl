@@ -78,7 +78,12 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     r .*= dcf_d
     r .-= y_d
     obj = 1/2 * sum(abs2, r)
-    @info "Initial Objective: $obj"
+
+    info="Initial Objective: $obj"
+    @info info
+    open("output.txt", "a") do f
+        println(f, string(info))
+    end
 
     # Optimiser
     if !isnothing(fat_modulation)
@@ -86,7 +91,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     else
         model = (S0 = s0_d, e = e_d)
     end
-    state = Optimisers.setup(Optimisers.AdamW(), model)
+    state = Optimisers.setup(Optimisers.AdaGrad(eta=0.1), model)
 
     for it = 1:niter
         if !isnothing(fat_modulation)
@@ -135,8 +140,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
 
     # collect results from GPU & return:
     if !isnothing(fat_modulation) 
-        1 ./ real(e_d), s0_fat_d, s0_water_d, b0_d
+        1000 ./ real(e_d), s0_fat_d, s0_water_d, b0
     else
-        1 ./ real(e_d), nothing, s0_d, b0
+        1000 ./ real(e_d), nothing, s0_d, b0
     end
 end
