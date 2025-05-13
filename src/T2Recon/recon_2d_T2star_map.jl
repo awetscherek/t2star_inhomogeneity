@@ -91,7 +91,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     else
         model = (S0 = s0_d, e = e_d)
     end
-    state = Optimisers.setup(Optimisers.AdaGrad(), model)
+    state = Optimisers.setup(Optimisers.AdamW(couple=false), model)
 
     for it = 1:niter
         if !isnothing(fat_modulation)
@@ -140,8 +140,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
 
     # collect results from GPU & return:
     if !isnothing(fat_modulation) 
-        1000 ./ real(e_d), s0_fat_d, s0_water_d, b0
+        1 ./ real(e_d), s0_fat_d, s0_water_d, b0
     else
-        1000 ./ real(e_d), nothing, s0_d, b0
+        1 ./ real(e_d), nothing, s0_d, b0
     end
 end
