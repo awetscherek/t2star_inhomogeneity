@@ -111,7 +111,7 @@ function fit_monoexponential(xdata, ydata)
         b = -1.0 / neg_inv_b
     end
 
-    b = min(b, 0.2)
+    b = min(b, 200)
     
     return b, a  # Return T2* and |S₀|
 end
@@ -130,7 +130,7 @@ function gen_s0_prediction()
     # s0 = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
     echo_times = time_since_last_rf[268,:,1,1]
-    echo_times .*= 1e-3
+    # echo_times .*= 1e-3
 
     # println("Echo times: ", echo_times)
 
@@ -148,6 +148,6 @@ function gen_s0_prediction()
 
     s0 = s0_mag .* cis.((s0_phase .* (π/180)))
 
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Intermediate/2d/t2$comb$dcf", ComplexF32.(t2 * 1e3))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Intermediate/2d/t2$comb$dcf", ComplexF32.(t2))
     ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Intermediate/2d/s0$comb$dcf", ComplexF32.(s0))
 end

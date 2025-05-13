@@ -6,10 +6,10 @@ function initialise_params(e_d, s0_d)
 
     b0_d .= 0
     
-    # if !isfile("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf.cfl")
-    #     @info "No B0 prediction detected - Generating prediction"
-    #     gen_b0_prediction()
-    # end
+    if !isfile("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf.cfl")
+        @info "No B0 prediction detected - Generating prediction"
+        gen_b0_prediction()
+    end
     # b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf"))
 
     im = -γ .* b0_d
