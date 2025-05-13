@@ -2,7 +2,7 @@ function initialise_params(e_d, s0_d)
     r2_d =  Array{Float64}(undef, size(e_d))
     b0_d =  Array{Float64}(undef, size(e_d))
 
-    r2_d .= 1 / 0.050
+    r2_d .= 1.0 / 50
 
     b0_d .= 0
     
@@ -29,7 +29,7 @@ function initialise_params(e_d, s0_fat, s0_water)
     r2_d =  Array{Float64}(undef, size(e_d))
     b0_d =  Array{Float64}(undef, size(e_d))
 
-    r2_d .= 1 / 0.050
+    r2_d .= 1.0 / 50
 
     # b0_d .= 0
     if !isfile("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf.cfl")
