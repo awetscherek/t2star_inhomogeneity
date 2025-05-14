@@ -81,10 +81,10 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     # end
 
     function adjoint_operator!(storage, x)
-            e, s0 = unflatten(x)
-            g_e, g_s0 = adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
-            timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, config["nchan"])
-            storage .= flatten(g_e, g_s0)
+        e, s0 = unflatten(x)
+        g_e, g_s0 = adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+        timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, config["nchan"])
+        storage .= flatten(g_e, g_s0)
     end
 
     if !isnothing(fat_modulation)
@@ -105,9 +105,30 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
         initial_guess = flatten(e_d, s0_d)
     end
 
-    results = optimize(forward_operator, adjoint_operator!,
+    # function pre_grad!(g, x)
+    #     # 1) compute the raw gradient into g
+    #     adjoint_operator!(g, x)
+
+    #     # 2) split out the exponent‐part vs s0‐part
+    #     N     = length(x) ÷ 2
+    #     g_e   = reshape(g[1:N], size(e_d))
+    #     g_s0  = reshape(g[N+1:end], size(s0_d))
+
+    #     # 3) rescale real/imag of e‐gradient
+    #     #    ∂/∂R2* ~ t → divide by t_max
+    #     #    ∂/∂B0  ~ γ·t → divide by γ_ratio*t_max
+    #     g_e_pc = ComplexF64.(
+    #         real.(g_e),
+    #         25 * imag.(g_e)
+    #     )
+
+    #     # 4) re-flatten
+    #     g .= vcat(vec(g_e_pc), vec(g_s0))
+    # end
+
+    results = optimize(forward_operator, pre_grad!,
         initial_guess,
-        ConjugateGradient(),
+        LBFGS(),
         Optim.Options(
             show_trace=true,
             iterations = niter))
