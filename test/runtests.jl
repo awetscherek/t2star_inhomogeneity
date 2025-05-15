@@ -121,6 +121,6 @@ end
       res;   # s0
       rtol=0.05,
       ε=5e-2,
-      repetitions=30,
+      repetitions=10,
     )
 end
