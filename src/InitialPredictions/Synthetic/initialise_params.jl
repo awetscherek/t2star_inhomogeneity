@@ -4,24 +4,23 @@ function initialise_synthetic_params(eval_no, e_d, s0_d)
 
     r2_d .= 1.0 / 50
 
-    b0_d .= 0
-    # if !isfile("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf.cfl")
-    #     @info "No B0 prediction detected - Generating prediction"
-    #     gen_b0_prediction()
-    # end
-    # b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf"))
+    # b0_d .= 0
+    if !isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_delta_b0.cfl")
+        @info "No B0 prediction detected - Generating prediction"
+        synthetic_b0_prediction(eval_no)
+    end
+    b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_delta_b0_dcf.cfl"))
 
     im = -γ .* b0_d
     e_d .= complex.(r2_d, im)
 
-    s0_d .= 0.0;
-    # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x_dcf")[:, :, :, 1])
+    # s0_d .= 0.0;
     
-    # if !isfile("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf.cfl")
-    #     @info "No S0 prediction detected - Generating prediction"    
-    #     synthetic_s0_prediction()
-    # end
-    # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf"));
+    if !isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_s0.cfl")
+        @info "No S0 prediction detected - Generating prediction"    
+        synthetic_s0_prediction(eval_no)
+    end
+    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_s0.cfl"));
 end
 
 function initialise_synthetic_params(eval_no, e_d, s0_fat, s0_water)
@@ -30,22 +29,20 @@ function initialise_synthetic_params(eval_no, e_d, s0_fat, s0_water)
 
     r2_d .= 1.0 / 50
 
-    b0_d .= 0
-    # if !isfile("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf.cfl")
-    #     @info "No B0 prediction detected - Generating prediction"    
-    #     synthetic_b0_prediction()
-    # end
-    # b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf"))
+    # b0_d .= 0
+    if !isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_delta_b0.cfl")
+        @info "No B0 prediction detected - Generating prediction"
+        synthetic_b0_prediction(eval_no)
+    end
+    b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_delta_b0_dcf.cfl"))
 
     im = -γ .* b0_d
     e_d .= complex.(r2_d, im)
 
-    if !isfile("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf.cfl")
+    if !isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_s0.cfl")
         @info "No S0 prediction detected - Generating prediction"    
-        gen_s0_prediction()
+        synthetic_s0_prediction(eval_no)
     end
-    s0_fat .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf")) ./ 2
-    
-    # s0_fat .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x_dcf")[:, :, :, 1]) ./ 2
+    s0_fat .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_s0.cfl")) ./ 2;
     s0_water .= s0_fat
 end

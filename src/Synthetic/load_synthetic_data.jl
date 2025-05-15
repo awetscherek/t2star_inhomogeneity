@@ -1,8 +1,8 @@
 function load_synthetic_data(eval_no, forward_operator)
     #function modified later to add noise to kspace
-    if (!isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2") 
-        || !isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0")
-        || !isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_b0"))
+    if (!isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2.cfl") 
+        || !isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0.cfl")
+        || !isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_b0.cfl"))
         @info "Generating Synthetic Data"
 
         call_dynamic(eval_no)

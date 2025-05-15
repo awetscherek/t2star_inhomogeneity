@@ -1,4 +1,4 @@
-function image_recon_synthetic_2d(config, kx, ky, y_d, dims; # keyword arguments: 
+function image_recon_synthetic_2d(config, kx, ky, y_d; # keyword arguments: 
     combine_coils = false,      # whether to use coil sensitivities
     sens = nothing,             # coil sensitivities ...
     use_dcf = false,            # whether to use pre-conditioner
@@ -7,6 +7,8 @@ function image_recon_synthetic_2d(config, kx, ky, y_d, dims; # keyword arguments
     max_ls = 100,               # number of line search iterations
     alpha0 = 1.0,               # initial step size for line search
     beta = 0.6)                 # factor to decrease step size
+
+    dims = [nx,ny]
 
     @assert !combine_coils || !isnothing(sens) "if we want to combine coils we need coil sensitivities ..."
 
@@ -23,18 +25,6 @@ function image_recon_synthetic_2d(config, kx, ky, y_d, dims; # keyword arguments
     # and use only data from central k-space region:
     selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi;
 
-    println("size of selection")
-    println(size(selection))
-
-    println("size of kx_d")
-    println(size(kx_d))
-
-    println("size of kx_d[selection]")
-    println(size(kx_d[selection]))
-
-    println("size of y_d")
-    println(size(y_d))
-
     # this is where the coil images will be stored - note that we still will reconstruct several slices:
     x_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
 
@@ -45,6 +35,12 @@ function image_recon_synthetic_2d(config, kx, ky, y_d, dims; # keyword arguments
     finufft_setpts!(plan2, kx_d[selection], ky_d[selection])
     plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
     finufft_setpts!(plan1, kx_d[selection], ky_d[selection])
+
+    println("size of y_d")
+    println(size(y_d))
+
+    println("size of kx_d selection")
+    println(size(kx_d[selection]))
 
     # allocate some arrays:
     r = Array{ComplexF64}(undef, size(y_d));

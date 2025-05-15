@@ -1,4 +1,4 @@
-function synthetic_b0_prediction()
+function synthetic_b0_prediction(eval_no)
     config, _, _, _, _, _, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
     # Configure which values of x are used for generation
@@ -8,7 +8,7 @@ function synthetic_b0_prediction()
     dcf = use_dcf ? "_dcf" : ""
 
     x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"], config["necho"]);
-    x .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x$comb$dcf")
+    x .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/$(eval_no)_synth_recon")
 
     time_since_last_rf = Float64.(time_since_last_rf)
 
@@ -60,6 +60,6 @@ function synthetic_b0_prediction()
     Δb0  = reshape(a ./ γ, nx, ny, nz)
     init_phase = reshape(b, nx, ny, nz)
 
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/B0/2d/delta_b0$comb$dcf", ComplexF32.(Δb0))
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/B0/2d/init_phase$comb$dcf", ComplexF32.(init_phase))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_delta_b0", ComplexF32.(Δb0))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Intermediate/2d/InitialPrediction/$(eval_no)_init_phase", ComplexF32.(init_phase))
 end

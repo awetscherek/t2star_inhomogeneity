@@ -20,7 +20,7 @@ function gen_synthetic_data_1()
     # Fill in the cylinder values for each slice
     for z in 1:nz
         S0[:, :, z] .= circle_mask .* 1.0
-        T2star[:, :, z] .= circle_mask .* 50.0
+        T2star[:, :, z] .= circle_mask .* 50.0  
     end
 
     ReadWriteCFL.writecfl("/mnt/f/Dominic/Data/Synthetic/2d/1_t2", ComplexF32.(T2star))

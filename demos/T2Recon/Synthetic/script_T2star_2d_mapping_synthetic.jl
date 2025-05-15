@@ -38,10 +38,10 @@ dcf = use_dcf ? "_dcf" : ""
 fat_mod = use_fat_modulation ? "_fatmod" : ""
 water = use_fat_modulation ? "_water" : ""
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/$(eval_no)_t2_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(t2))
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/$(eval_no)_s0$(water)_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(s0_water))
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/$(eval_no)_delta_b0_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(Δb0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_t2_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(t2))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_s0$(water)_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(s0_water))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_delta_b0_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(Δb0))
 
 if use_fat_modulation
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/$(eval_no)_s0_fat_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(s0_fat))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_s0_fat_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(s0_fat))
 end

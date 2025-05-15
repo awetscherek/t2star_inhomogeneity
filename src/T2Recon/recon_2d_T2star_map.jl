@@ -34,16 +34,16 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     # ------------------------------------------
     e_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
 
-    data_type = use_synthetic ? Synthetic() : Real()
+    if !use_synthetic
+        if !isnothing(fat_modulation)
+            s0_fat_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
+            s0_water_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
 
-    if !isnothing(fat_modulation)
-        s0_fat_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
-        s0_water_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
-
-        initialise_params(data_type,eval_no, e_d, s0_fat_d, s0_water_d)
-    else
-        s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
-        initialise_params(data_type,eval_no, e_d, s0_d)
+            initialise_params(Real(), e_d, s0_fat_d, s0_water_d)
+        else
+            s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
+            initialise_params(Real(), e_d, s0_d)
+        end
     end
 
     # plan NUFFTs:
@@ -86,28 +86,30 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
 
     if use_synthetic
         y = load_synthetic_data(eval_no, synth_recon_forward_operator)
-        y_d = vcat(y...)
-
-        if combine_coils
-            calculate_synthetic_coil_sensitivity(sens)
-        end
+        y_d .= vcat(y...)
 
         time_step = ceil(Int, size(kx)[1] / timepoint_window_size)
 
+        if combine_coils
+            sens = calculate_synthetic_coil_sensitivity(config, eval_no, kx, ky, vcat(y[1:time_step]...))
+        end
+
         x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"], config["necho"]);
 
+        #Reconstructing Synthetic data for Intermediate Image Initial Prediction
         for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
             xe .= image_recon_synthetic_2d(config, 
             @view(kx[:, ie, :, :]),
             @view(ky[:, ie, :, :]),
             vcat(y[(ie-1)*time_step + 1:ie*time_step]...),
-            [nx, ny],
             combine_coils = combine_coils,
             sens = sens,
             use_dcf = use_dcf,
             )
         end
-        ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/temp", ComplexF32.(x))
+        ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/$(eval_no)_synth_recon", ComplexF32.(x))
+
+        initialise_params(Synthetic(), eval_no, e_d, s0_d)
     end
 
     if !isnothing(fat_modulation)
