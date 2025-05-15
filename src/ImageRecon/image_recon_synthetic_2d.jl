@@ -36,12 +36,6 @@ function image_recon_synthetic_2d(config, kx, ky, y_d; # keyword arguments:
     plan1 = finufft_makeplan(1, dims, -1, nz * config["nchan"], tol)    # type 1 (adjoint transform)
     finufft_setpts!(plan1, kx_d[selection], ky_d[selection])
 
-    println("size of y_d")
-    println(size(y_d))
-
-    println("size of kx_d selection")
-    println(size(kx_d[selection]))
-
     # allocate some arrays:
     r = Array{ComplexF64}(undef, size(y_d));
     g = combine_coils ? Array{ComplexF64}(undef, size(x_d)) : Array{ComplexF64}(undef, nx, ny, nz * config["nchan"]);

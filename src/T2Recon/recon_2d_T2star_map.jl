@@ -52,15 +52,33 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
 
     r = Array{ComplexF64}(undef, size(y_d))
 
-    # Initialise Operators with implicit values
-    function forward_operator(e, fat, water)
-        return forward_operator_impl(plan2, e, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
-        timepoint_window_size, fat_modulation)
+    function flatten(e, s0)
+        return vcat(vec(e), vec(s0))
     end
 
-    function forward_operator(e,s0)
-        return forward_operator_impl(plan2, e, nothing, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
+    function unflatten(X)
+        N = length(X) ÷ 2
+        return reshape(X[1:N], size(e_d)), reshape(X[N+1:end], size(s0_d))
+    end
+
+    # Initialise Operators with implicit values
+    function forward_operator(e, fat, water)
+        r .= forward_operator_impl(plan2, e, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
         timepoint_window_size, fat_modulation)
+        r .*= dcf_d
+        r .-= y_d
+        return 1/2 * sum(abs2, r)
+    end
+
+    function forward_operator(x)
+        e, s0 = unflatten(x)
+        r .= forward_operator_impl(plan2, e, nothing, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
+        timepoint_window_size, fat_modulation)
+        r .*= dcf_d
+        r .-= y_d
+        obj = 1/2 * sum(abs2, r)
+        @info "obj = $obj"
+        return obj
     end
 
     function synth_recon_forward_operator(e,s0)
@@ -73,15 +91,17 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
         timepoint_window_size, fat_modulation, true)
     end
 
-    function adjoint_operator(e, fat, water)
-        return adjoint_operator_impl(plan1, r, e, fat, water, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
-        timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, config["nchan"])
-        storage .= flatten(g_r2, g_b0, g_fat_s0, g_water_s0)
-    end
+    # function adjoint_operator(e, fat, water)
+    #     return adjoint_operator_impl(plan1, r, e, fat, water, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+    #     timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, config["nchan"])
+    #     storage .= flatten(g_r2, g_b0, g_fat_s0, g_water_s0)
+    # end
 
-    function adjoint_operator(e, s0)
-        return adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+    function adjoint_operator!(storage, x)
+        e, s0 = unflatten(x)
+        g_e, g_s0 = adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
         timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, config["nchan"])
+        storage .= flatten(g_e, g_s0)
     end
 
     if use_synthetic
@@ -113,65 +133,33 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     end
 
     if !isnothing(fat_modulation)
-        r .= forward_operator(e_d, s0_fat_d, s0_water_d)
+        # obj = forward_operator(e_d, s0_fat_d, s0_water_d)
     else
-        r .= forward_operator(e_d, s0_d)
+        obj = forward_operator(flatten(e_d, s0_d))
     end
-    r .*= dcf_d
-    r .-= y_d
-    obj = 1/2 * sum(abs2, r)
-
     info="Initial Objective: $obj"
     @info info
     open("output.txt", "a") do f
         println(f, string(info))
     end
 
-    # Optimiser
     if !isnothing(fat_modulation)
-        model = (fat = s0_fat_d, water = s0_water_d, e = e_d)
+        # initial_guess = flatten(r2_d, b0_d, s0_fat_d, s0_water_d)
     else
-        model = (S0 = s0_d, e = e_d)
+        initial_guess = flatten(e_d, s0_d)
     end
-    state = Optimisers.setup(Optimisers.AdamW(couple=false), model)
 
-    for it = 1:niter
-        if !isnothing(fat_modulation)
-            g_e, g_fat, g_water = adjoint_operator(e_d, s0_fat_d, s0_water_d)
+    results = optimize(forward_operator, adjoint_operator!,
+        initial_guess,
+        GradientDescent(),
+        Optim.Options(
+            show_trace=true,
+            iterations = niter))
 
-            gradients = (fat = g_fat, water = g_water, e = g_e)
-            state, model = Optimisers.update(state, model, gradients)
-            e_d, s0_fat_d, s0_water_d = model.e, model.fat, model.water
+    x = Optim.minimizer(results)
 
-            r .= forward_operator(e_d, s0_fat_d, s0_water_d)
-            r .*= dcf_d
-            r .-= y_d
-            obj = 1/2 * sum(abs2, r)
+    e_d, s0_d = unflatten(x)
 
-            info="it = $it, obj = $obj"
-            @info info
-            open("output.txt", "a") do f
-                println(f, string(info))
-            end
-        else     
-            g_e, g_s0 = adjoint_operator(e_d, s0_d)
-
-            gradients = (S0 = g_s0, e = g_e)
-            state, model = Optimisers.update(state, model, gradients)
-            s0_d, e_d = model.S0, model.e
-
-            r .= forward_operator(e_d, s0_d)
-            r .*= dcf_d
-            r .-= y_d
-            obj = 1/2 * sum(abs2, r)
-
-            info="it = $it, obj = $obj"
-            @info info
-            open("output.txt", "a") do f
-                println(f, string(info))
-            end
-        end
-    end
 
     finufft_destroy!(plan1)
     finufft_destroy!(plan2)
