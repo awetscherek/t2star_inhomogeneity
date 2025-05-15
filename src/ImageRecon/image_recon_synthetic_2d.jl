@@ -1,4 +1,4 @@
-function image_recon_2d(config, kx, ky, raw, dims; # keyword arguments: 
+function image_recon_synthetic_2d(config, kx, ky, y_d, dims; # keyword arguments: 
     combine_coils = false,      # whether to use coil sensitivities
     sens = nothing,             # coil sensitivities ...
     use_dcf = false,            # whether to use pre-conditioner
@@ -10,39 +10,33 @@ function image_recon_2d(config, kx, ky, raw, dims; # keyword arguments:
 
     @assert !combine_coils || !isnothing(sens) "if we want to combine coils we need coil sensitivities ..."
 
-    nx, ny = dims;
-    nz = size(raw, 3) # this assumes only data from one echo is passed to the function, but several slices, so raw should be a 4D array
-
     # this preconditioner could help speed up convergence:
     dcf = use_dcf ? abs.(-size(ky, 1)/2+0.5:size(ky, 1)/2) : 1.0
     dcf = dcf ./ maximum(dcf)
 
     c_d = combine_coils ? sens : [1.0]; # this shouldn't make a copy of sens
 
-    println("kx size")
-    println(size(kx))
-
     # use only raw data from 1st echo (most signal), normalize non-uniform frequency on pixel size (FOV/n)
     kx_d = reshape(kx * config["FOVx"] / nx * 2 * pi, :);
     ky_d = reshape(ky * config["FOVy"] / ny * 2 * pi, :);
 
-    println("shape of kx_d")
-    println(size(kx_d))
-1
     # and use only data from central k-space region:
     selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi;
 
     println("size of selection")
     println(size(selection))
 
+    println("size of kx_d")
+    println(size(kx_d))
+
+    println("size of kx_d[selection]")
+    println(size(kx_d[selection]))
+
+    println("size of y_d")
+    println(size(y_d))
+
     # this is where the coil images will be stored - note that we still will reconstruct several slices:
     x_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
-
-    # this is the raw data from which we want to reconstruct the coil images (first echo, coils last):
-    y_d = reshape(ComplexF64.(permutedims(raw, [1 4 3 2])) .* sqrt.(dcf), :, nz * config["nchan"])[selection, :];
-
-    println("size y_d")
-    println(size(y_d))
 
     dcf_d = use_dcf ? reshape(repeat(sqrt.(dcf), outer = (1, size(ky, 2))), :)[selection] : 1.0;
 

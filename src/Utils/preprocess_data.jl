@@ -9,9 +9,6 @@ function preprocess_data(config, raw, combine_coils, sens, kx, ky, timepoint_win
         ky = ky[:, :, :, :]
     end
 
-    #kx and ky should be of shape
-    #(269,8,536)
-    # nky => necho => nkx
     nkx, _, nky= size(kx)
 
     @assert timepoint_window_size <= nkx "The timepoint window size cannot be larger than nkx"
@@ -23,16 +20,17 @@ function preprocess_data(config, raw, combine_coils, sens, kx, ky, timepoint_win
     c_d = combine_coils ? sens : [1.0] # this shouldn't make a copy of sens
 
     # use only raw data from 1st echo (most signal), normalize non-uniform frequency on pixel size (FOV/n)
-    kx_d = reshape(permutedims(kx, [2 1 3 4]) * config["FOVx"] / nx * 2 * pi, :, nky)
-    ky_d = reshape(permutedims(ky, [2 1 3 4]) * config["FOVy"] / ny * 2 * pi, :, nky)
+    kx_d = reshape(kx * config["FOVx"] / nx * 2 * pi, :, nky)
+    ky_d = reshape(ky * config["FOVy"] / ny * 2 * pi, :, nky)
 
     # and use only data from central k-space region:
     selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi
 
-    dcf_y = use_dcf ? reshape(sqrt.(dcf), 1, size(dcf, 1), 1, 1, 1) : dcf
+    dcf_y = use_dcf ? reshape(sqrt.(dcf), size(dcf, 1),1, 1, 1, 1) : dcf
+
     dcf_d = use_dcf ? repeat(sqrt.(dcf), outer=(size(ky, 2), size(ky, 3)))[selection] : 1.0
 
-    y_d = reshape(ComplexF64.(permutedims(raw, [3 1 5 4 2])) .* dcf_y, config["necho"] * nkx, :, nz * config["nchan"])[selection, :]
+    y_d = reshape(ComplexF64.(permutedims(raw, [1 3 5 4 2])) .* dcf_y, nkx * config["necho"], :, nz * config["nchan"])[selection, :]
 
     num_total_timepoints = config["necho"] * nkx
     num_timepoints = ceil(Int, num_total_timepoints / timepoint_window_size)

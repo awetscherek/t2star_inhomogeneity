@@ -1,4 +1,4 @@
-function initialise_params(e_d, s0_d)
+function initialise_real_params(e_d, s0_d)
     r2_d =  Array{Float64}(undef, size(e_d))
     b0_d =  Array{Float64}(undef, size(e_d))
 
@@ -7,7 +7,7 @@ function initialise_params(e_d, s0_d)
     # b0_d .= 0
     if !isfile("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf.cfl")
         @info "No B0 prediction detected - Generating prediction"
-        gen_b0_prediction()
+        real_b0_prediction()
     end
     b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf"))
 
@@ -19,12 +19,12 @@ function initialise_params(e_d, s0_d)
     
     if !isfile("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf.cfl")
         @info "No S0 prediction detected - Generating prediction"    
-        gen_s0_prediction()
+        real_s0_prediction()
     end
     s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf"));
 end
 
-function initialise_params(e_d, s0_fat, s0_water)
+function initialise_real_params(e_d, s0_fat, s0_water)
     r2_d =  Array{Float64}(undef, size(e_d))
     b0_d =  Array{Float64}(undef, size(e_d))
 
@@ -33,7 +33,7 @@ function initialise_params(e_d, s0_fat, s0_water)
     # b0_d .= 0
     if !isfile("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf.cfl")
         @info "No B0 prediction detected - Generating prediction"    
-        gen_b0_prediction()
+        real_b0_prediction()
     end
     b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/B0/2d/delta_b0_dcf"))
 
@@ -42,7 +42,7 @@ function initialise_params(e_d, s0_fat, s0_water)
 
     if !isfile("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf.cfl")
         @info "No S0 prediction detected - Generating prediction"    
-        gen_s0_prediction()
+        real_s0_prediction()
     end
     s0_fat .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf")) ./ 2
     

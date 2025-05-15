@@ -46,12 +46,10 @@ export adjoint_operator_impl
 
 include("InitialPredictions.jl")
 
+include("Synthetic.jl")
+
 include("T2Recon.jl")
 
 export recon_2d_t2star_map
-
-include("Synthetic.jl")
-
-export load_synthetic_data
 
 end

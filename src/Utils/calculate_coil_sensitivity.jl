@@ -22,3 +22,8 @@ function calculate_coil_sensitivity(config, kx, ky, raw)
     # load coil sensitivities into Julia
     return ReadWriteCFL.readcfl("data/coil_sens/sens")
 end
+
+function calculate_synthetic_coil_sensitivity(sens)
+    @info "Using Combined coils"
+    sens .= 1
+end

@@ -1,4 +1,4 @@
-function gen_b0_prediction()
+function real_b0_prediction()
     config, _, _, _, _, _, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
     # Configure which values of x are used for generation

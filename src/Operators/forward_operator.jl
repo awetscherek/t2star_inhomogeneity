@@ -1,20 +1,20 @@
 function forward_operator_impl(plan2, e_d, s0_fat_d, s0_water_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
-    c_d, timepoints, selection, timepoint_window_size, fat_modulation = nothing)
+    c_d, timepoints, selection, timepoint_window_size, fat_modulation = nothing, synth_recon=false)
     if !isnothing(fat_modulation)
         y_water = _forward_operator_impl(plan2, e_d, s0_water_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
-        c_d, timepoints, selection, timepoint_window_size)
+        c_d, timepoints, selection, timepoint_window_size, synth_recon)
         y_fat = _forward_operator_impl(plan2, e_d, s0_fat_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
-        c_d, timepoints, selection, timepoint_window_size)
+        c_d, timepoints, selection, timepoint_window_size, synth_recon)
         return y_water .+ fat_modulation .* y_fat
     else
         # Not utilising Fat Modulation, implicitly assume that everything is Water
         return _forward_operator_impl(plan2, e_d, s0_water_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
-        c_d, timepoints, selection, timepoint_window_size)
+        c_d, timepoints, selection, timepoint_window_size, synth_recon)
     end
 end
 
 function _forward_operator_impl(plan2, e_d, s0_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
-    c_d, timepoints, selection, timepoint_window_size)
+    c_d, timepoints, selection, timepoint_window_size, synth_recon)
     y_list = Vector{Array{ComplexF64}}(undef, num_timepoints)
     for t in ProgressBar(1:num_timepoints)
         t_start = (t - 1) * timepoint_window_size + 1
@@ -33,6 +33,9 @@ function _forward_operator_impl(plan2, e_d, s0_d, num_timepoints, num_total_time
         y_t = finufft_exec(plan2, w_d_t .* c_d)
 
         y_list[t] = y_t
+    end
+    if synth_recon
+        return y_list
     end
     y = vcat(y_list...)
     return y
