@@ -56,18 +56,30 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
         return vcat(vec(e), vec(s0))
     end
 
+    function flatten(e, fat, water)
+        return vcat(vec(e), vec(fat), vec(water))
+    end
+
     function unflatten(X)
         N = length(X) ÷ 2
         return reshape(X[1:N], size(e_d)), reshape(X[N+1:end], size(s0_d))
     end
 
+    function unflatten_fatmod(X)
+        N = length(X) ÷ 3
+        return reshape(X[1:N], size(e_d)), reshape(X[N+1:2*N], size(s0_fat_d)), reshape(X[2*N+1:end], size(s0_water_d))
+    end
+
     # Initialise Operators with implicit values
-    function forward_operator(e, fat, water)
+    function forward_operator_fatmod(x)
+        e, fat,water = unflatten_fatmod(x)
         r .= forward_operator_impl(plan2, e, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
         timepoint_window_size, fat_modulation)
         r .*= dcf_d
         r .-= y_d
-        return 1/2 * sum(abs2, r)
+        obj = 1/2 * sum(abs2, r)
+        @info "obj = $obj"
+        return obj
     end
 
     function forward_operator(x)
@@ -91,17 +103,18 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
         timepoint_window_size, fat_modulation, true)
     end
 
-    # function adjoint_operator(e, fat, water)
-    #     return adjoint_operator_impl(plan1, r, e, fat, water, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
-    #     timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, config["nchan"])
-    #     storage .= flatten(g_r2, g_b0, g_fat_s0, g_water_s0)
-    # end
-
     function adjoint_operator!(storage, x)
         e, s0 = unflatten(x)
         g_e, g_s0 = adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
         timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, config["nchan"])
         storage .= flatten(g_e, g_s0)
+    end
+
+    function adjoint_operator_fatmod!(storage, x)
+        e, fat,water = unflatten_fatmod(x)
+        g_e, g_fat, g_water = adjoint_operator_impl(plan1, r, e, fat, water, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
+        timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, config["nchan"])
+        storage .= flatten(g_e, g_fat, g_water)
     end
 
     if use_synthetic
@@ -133,7 +146,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     end
 
     if !isnothing(fat_modulation)
-        # obj = forward_operator(e_d, s0_fat_d, s0_water_d)
+        obj = forward_operator_fatmod(flatten(e_d, s0_fat_d, s0_water_d))
     else
         obj = forward_operator(flatten(e_d, s0_d))
     end
@@ -144,22 +157,34 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     end
 
     if !isnothing(fat_modulation)
-        # initial_guess = flatten(r2_d, b0_d, s0_fat_d, s0_water_d)
+        initial_guess = flatten(e_d, s0_fat_d, s0_water_d)
     else
         initial_guess = flatten(e_d, s0_d)
     end
 
-    results = optimize(forward_operator, adjoint_operator!,
-        initial_guess,
-        GradientDescent(),
-        Optim.Options(
-            show_trace=true,
-            iterations = niter))
+    if !isnothing(fat_modulation)
+        results = optimize(forward_operator_fatmod, adjoint_operator_fatmod!,
+            initial_guess,
+            LBFGS(),
+            Optim.Options(
+                show_trace=true,
+                iterations = niter))
+    else
+        results = optimize(forward_operator, adjoint_operator!,
+            initial_guess,
+            GradientDescent(),
+            Optim.Options(
+                show_trace=true,
+                iterations = niter))
+    end
 
     x = Optim.minimizer(results)
 
-    e_d, s0_d = unflatten(x)
-
+    if !isnothing(fat_modulation)
+        e_d, s0_fat_d, s0_water_d = unflatten_fatmod(x)
+    else
+        e_d, s0_d = unflatten(x)
+    end
 
     finufft_destroy!(plan1)
     finufft_destroy!(plan2)
