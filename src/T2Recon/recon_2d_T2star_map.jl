@@ -28,20 +28,24 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
         ky,
         timepoint_window_size,
         use_dcf,
-        fat_modulation
+        fat_modulation,
+        use_synthetic
         )
 
     # ------------------------------------------
     e_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
 
+    if !isnothing(fat_modulation)
+        s0_fat_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
+        s0_water_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
+    else
+        s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
+    end
+
     if !use_synthetic
         if !isnothing(fat_modulation)
-            s0_fat_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
-            s0_water_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
-
             initialise_params(Real(), e_d, s0_fat_d, s0_water_d)
         else
-            s0_d = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"])
             initialise_params(Real(), e_d, s0_d)
         end
     end
@@ -53,6 +57,47 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     r = Array{ComplexF64}(undef, size(y_d))
 
     # Initialise Operators with implicit values
+    function synth_recon_forward_operator(e,s0)
+        return forward_operator_impl(plan2, e, nothing, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, 1.0, timepoints, selection,
+        timepoint_window_size, fat_modulation, true)
+    end
+
+    function synth_recon_forward_operator(e, fat, water)
+        return forward_operator_impl(plan2, e, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, 1.0, timepoints, selection,
+        timepoint_window_size, fat_modulation, true)
+    end
+
+    if use_synthetic
+        y = load_synthetic_data(eval_no, synth_recon_forward_operator, config["nchan"])
+        y_d .= vcat(y...)
+
+        time_step = ceil(Int, size(kx)[1] / timepoint_window_size)
+
+        if combine_coils
+            c_d = calculate_synthetic_coil_sensitivity(config, eval_no, kx, ky, vcat(y[1:time_step]...))
+        end
+
+        if !isfile("/mnt/f/Dominic/Results/Synthetic/2d/$(eval_no)_synth_recon.cfl")
+
+            x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"], config["necho"]);
+
+            #Reconstructing Synthetic data for Intermediate Image Initial Prediction
+            for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
+                xe .= image_recon_synthetic_2d(config, 
+                @view(kx[:, ie, :, :]),
+                @view(ky[:, ie, :, :]),
+                vcat(y[(ie-1)*time_step + 1:ie*time_step]...),
+                combine_coils = combine_coils,
+                sens = c_d,
+                use_dcf = use_dcf,
+                )
+            end
+            ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/$(eval_no)_synth_recon", ComplexF32.(x))
+
+        end
+        initialise_params(Synthetic(), eval_no, e_d, s0_d)
+    end
+
     function forward_operator(e, fat, water)
         return forward_operator_impl(plan2, e, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
         timepoint_window_size, fat_modulation)
@@ -61,16 +106,6 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     function forward_operator(e,s0)
         return forward_operator_impl(plan2, e, nothing, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
         timepoint_window_size, fat_modulation)
-    end
-
-    function synth_recon_forward_operator(e,s0)
-        return forward_operator_impl(plan2, e, nothing, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
-        timepoint_window_size, fat_modulation, true)
-    end
-
-    function synth_recon_forward_operator(e, fat, water)
-        return forward_operator_impl(plan2, e, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
-        timepoint_window_size, fat_modulation, true)
     end
 
     function adjoint_operator(e, fat, water)
@@ -82,34 +117,6 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims; # keyword ar
     function adjoint_operator(e, s0)
         return adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
         timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation, config["nchan"])
-    end
-
-    if use_synthetic
-        y = load_synthetic_data(eval_no, synth_recon_forward_operator)
-        y_d .= vcat(y...)
-
-        time_step = ceil(Int, size(kx)[1] / timepoint_window_size)
-
-        if combine_coils
-            sens = calculate_synthetic_coil_sensitivity(config, eval_no, kx, ky, vcat(y[1:time_step]...))
-        end
-
-        x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"], config["necho"]);
-
-        #Reconstructing Synthetic data for Intermediate Image Initial Prediction
-        for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
-            xe .= image_recon_synthetic_2d(config, 
-            @view(kx[:, ie, :, :]),
-            @view(ky[:, ie, :, :]),
-            vcat(y[(ie-1)*time_step + 1:ie*time_step]...),
-            combine_coils = combine_coils,
-            sens = sens,
-            use_dcf = use_dcf,
-            )
-        end
-        ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/$(eval_no)_synth_recon", ComplexF32.(x))
-
-        initialise_params(Synthetic(), eval_no, e_d, s0_d)
     end
 
     if !isnothing(fat_modulation)

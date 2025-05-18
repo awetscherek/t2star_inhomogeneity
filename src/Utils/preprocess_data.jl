@@ -1,5 +1,7 @@
-function preprocess_data(config, raw, combine_coils, sens, kx, ky, timepoint_window_size, use_dcf, fat_modulation)
-    @assert !combine_coils || !isnothing(sens) "if we want to combine coils we need coil sensitivities ..."
+function preprocess_data(config, raw, combine_coils, sens, kx, ky, timepoint_window_size, use_dcf, fat_modulation, use_synthetic=false)
+    if !use_synthetic
+        @assert !combine_coils || !isnothing(sens) "if we want to combine coils we need coil sensitivities ..."
+    end
 
     if length(size(kx)) == 3
         kx = kx[:, :, :, :]

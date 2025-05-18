@@ -1,0 +1,7 @@
+Evaluation 1:
+DQT2: 
+ Timepoint Window Size: 536 
+ Loss: 161122.56822193204
+DQT2: 
+ Timepoint Window Size: 268 
+ Loss: 160335.6093893099

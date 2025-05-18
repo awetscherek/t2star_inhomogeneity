@@ -1,2 +1,3 @@
+include("Synthetic/SyntheticPhantoms.jl")
+include("Synthetic/gen_phantoms.jl")
 include("Synthetic/load_synthetic_data.jl")
-include("Synthetic/DataGen/gen_synthetic_data_1.jl")

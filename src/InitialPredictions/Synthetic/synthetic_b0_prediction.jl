@@ -61,5 +61,5 @@ function synthetic_b0_prediction(eval_no)
     init_phase = reshape(b, nx, ny, nz)
 
     ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_delta_b0", ComplexF32.(Δb0))
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Intermediate/2d/InitialPrediction/$(eval_no)_init_phase", ComplexF32.(init_phase))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_init_phase", ComplexF32.(init_phase))
 end

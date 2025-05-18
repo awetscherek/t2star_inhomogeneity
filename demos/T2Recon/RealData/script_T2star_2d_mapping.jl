@@ -3,7 +3,7 @@ using DqT2
 # Configure Settings
 combine_coils = true
 use_dcf = true
-use_fat_modulation = true
+use_fat_modulation = false
 
 #Precision of approximation of timepoints
 # 1 - No approximation (NUFFT for every time point)
@@ -11,11 +11,6 @@ use_fat_modulation = true
 timepoint_window_size = 536
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation)
-
-t2 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
-s0_fat = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
-s0_water = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"]);
-Δb0 = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 
 t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
     @view(kx[:, :, :, :]),

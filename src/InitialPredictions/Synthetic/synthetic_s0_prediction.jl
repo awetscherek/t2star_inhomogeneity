@@ -16,7 +16,7 @@ function synthetic_s0_prediction(eval_no)
     x .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/$(eval_no)_synth_recon")
     Δb0 .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_delta_b0"))
     #Phase in degrees
-    s0_phase .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/InitialPrediction/$(eval_no)_init_phase"))
+    s0_phase .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_init_phase"))
 
     println("Data Loaded")
 
@@ -25,5 +25,5 @@ function synthetic_s0_prediction(eval_no)
     s0 = s0_mag .* cis.((s0_phase .* (π/180)))
 
     ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_t2", ComplexF32.(t2))
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Intermediate/2d/InitialPrediction/$(eval_no)_s0", ComplexF32.(s0))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_s0", ComplexF32.(s0))
 end

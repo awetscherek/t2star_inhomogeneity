@@ -9,7 +9,7 @@ function initialise_synthetic_params(eval_no, e_d, s0_d)
         @info "No B0 prediction detected - Generating prediction"
         synthetic_b0_prediction(eval_no)
     end
-    b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_delta_b0_dcf.cfl"))
+    b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_delta_b0.cfl"))
 
     im = -γ .* b0_d
     e_d .= complex.(r2_d, im)
@@ -34,7 +34,7 @@ function initialise_synthetic_params(eval_no, e_d, s0_fat, s0_water)
         @info "No B0 prediction detected - Generating prediction"
         synthetic_b0_prediction(eval_no)
     end
-    b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_delta_b0_dcf.cfl"))
+    b0_d .= Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_delta_b0.cfl"))
 
     im = -γ .* b0_d
     e_d .= complex.(r2_d, im)

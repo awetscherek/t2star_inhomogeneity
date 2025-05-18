@@ -1,4 +1,4 @@
-function load_and_process_data(combine_coils :: Bool, use_fat_modulation :: Bool)
+function load_and_process_data(combine_coils :: Bool, use_fat_modulation :: Bool, use_synthetic=false)
     config, noise, raw, kx, ky, kz, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
     @assert size(noise) == (19832, 8)   # noise measurement could be used for pre-whitening
@@ -22,8 +22,10 @@ function load_and_process_data(combine_coils :: Bool, use_fat_modulation :: Bool
     ky = ky[:, :, 1, :]
     kz = nothing
 
-    if combine_coils
+    if combine_coils && !use_synthetic
         sens = calculate_coil_sensitivity(config, kx, ky, raw)
+    else
+        sens = nothing
     end
     #######################################################################################################################
 
@@ -37,5 +39,5 @@ function load_and_process_data(combine_coils :: Bool, use_fat_modulation :: Bool
     #Convert ms to sec
     # timepoints .*= 1e-3
 
-    return raw, kx, ky, kz, config, combine_coils ? sens : nothing, timepoints, use_fat_modulation ? fat_modulation : nothing
+    return raw, kx, ky, kz, config, sens , timepoints, use_fat_modulation ? fat_modulation : nothing
 end

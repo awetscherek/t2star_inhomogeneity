@@ -18,7 +18,6 @@ using MAT
 export ReadWriteCFL
 
 const γ = 2 * π * 42.576e6
-#should this be e6?
 
 # Resolutions for image reconstruction. 
 # Constants as these values have been used throughout the project
@@ -47,6 +46,8 @@ export adjoint_operator_impl
 include("InitialPredictions.jl")
 
 include("Synthetic.jl")
+
+export SyntheticPhantoms
 
 include("T2Recon.jl")
 
