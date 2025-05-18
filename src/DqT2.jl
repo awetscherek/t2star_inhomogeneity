@@ -25,6 +25,7 @@ const nx = 256
 const ny = 256
 const nz = 32 #number of slices
 
+
 export nx,ny,nz
 
 include("fat_modulation.jl")
@@ -52,5 +53,6 @@ export SyntheticPhantoms
 include("T2Recon.jl")
 
 export recon_2d_t2star_map
+export GDMode, Adam, Lbfgs
 
 end

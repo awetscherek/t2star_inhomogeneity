@@ -5,6 +5,8 @@ combine_coils = true
 use_dcf = true
 use_fat_modulation = false
 
+gdmode = Adam()
+
 #Precision of approximation of timepoints
 # 1 - No approximation (NUFFT for every time point)
 # nkx (536) - Echo time of each assumed to be the timepoint
@@ -19,6 +21,7 @@ t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
     timepoints,
     fat_modulation=use_fat_modulation ? fat_modulation : nothing,
     [nx, ny],
+    gdmode,
     combine_coils=combine_coils,
     timepoint_window_size=timepoint_window_size,
     sens=combine_coils ? sens : nothing,

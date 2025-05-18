@@ -6,7 +6,9 @@ use_dcf = true
 use_fat_modulation = false
 eval_no = 1
 
-output_file = "eval_results.txt"
+gdmode = Adam() # Lbfgs()
+
+output_file = (gdmode isa Adam) ? "eval_results_adam.txt" : "eval_results_lbfgs.txt"
 
 @assert eval_no >= 1 && eval_no <= 7
 
@@ -33,6 +35,7 @@ t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
     timepoints,
     fat_modulation=use_fat_modulation ? fat_modulation : nothing,
     [nx, ny],
+    gdmode,
     combine_coils=combine_coils,
     timepoint_window_size=timepoint_window_size,
     sens=nothing,
@@ -49,13 +52,13 @@ intermediate_loss = l2_norm(ground_truth, intermediate_t2)
 
 info="DQT2: \n Timepoint Window Size: $timepoint_window_size \n Loss: $dqt2_loss"
 @info info
-open("eval_results.txt", "a") do f
+open(output_file, "a") do f
     println(f, string(info))
 end
 
 info="Intermediate Image: \n Loss: $intermediate_loss"
 @info info
-open("eval_results.txt", "a") do f
+open(output_file, "a") do f
     println(f, string(info))
 end
 

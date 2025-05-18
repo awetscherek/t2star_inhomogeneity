@@ -5,6 +5,11 @@ combine_coils = true
 use_dcf = true
 use_fat_modulation = false
 
+gdmode = Adam() # Lbfgs()
+gdmode = Lbfgs()
+
+output_file = (gdmode isa Adam) ? "eval_results_adam.txt" : "eval_results_lbfgs.txt"
+
 function l2_norm(gt, rc)
     diff = gt .- rc
     return sqrt(sum(abs2,diff))
@@ -14,12 +19,13 @@ timepoint_window_sizes = [536, 268, 134, 67, 30, 20]
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
+ground_truth = nothing
 
 for eval_no in 1:7
 
     info="Evaluation $eval_no:"
     @info info
-    open("eval_results.txt", "a") do f
+    open(output_file, "a") do f
         println(f, string(info))
     end
 
@@ -31,6 +37,7 @@ for eval_no in 1:7
             timepoints,
             fat_modulation=use_fat_modulation ? fat_modulation : nothing,
             [nx, ny],
+            gdmode,
             combine_coils=combine_coils,
             timepoint_window_size=tws,
             sens=nothing,
@@ -58,7 +65,7 @@ for eval_no in 1:7
 
         info="DQT2: \n Timepoint Window Size: $tws \n Loss: $dqt2_loss"
         @info info
-        open("eval_results.txt", "a") do f
+        open(output_file, "a") do f
             println(f, string(info))
         end
     end
@@ -68,7 +75,7 @@ for eval_no in 1:7
     intermediate_loss = l2_norm(ground_truth, intermediate_t2)
     info="Intermediate Image: \n Loss: $intermediate_loss"
     @info info
-    open("eval_results.txt", "a") do f
+    open(output_file, "a") do f
         println(f, string(info))
     end
 end

@@ -5,3 +5,15 @@ DQT2:
 DQT2: 
  Timepoint Window Size: 268 
  Loss: 160335.6093893099
+DQT2: 
+ Timepoint Window Size: 134 
+ Loss: 160377.260162367
+DQT2: 
+ Timepoint Window Size: 67 
+ Loss: 160461.8067064607
+DQT2: 
+ Timepoint Window Size: 30 
+ Loss: 160407.25326311294
+DQT2: 
+ Timepoint Window Size: 20 
+ Loss: 160417.21157444347

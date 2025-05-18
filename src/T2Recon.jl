@@ -1,5 +1,6 @@
-#Prob need to make 3d version and add to this
+abstract type GDMode end
+struct Adam <: GDMode end
+struct Lbfgs <: GDMode end
 
-include("T2Recon/recon_2d_T2star_map.jl")
-
-# include("t2_recon/recon_3d_T2star_map.jl")
+include("T2Recon/recon_2d_T2star_map_adam.jl")
+include("T2Recon/recon_2d_T2star_map_lbfgs.jl")
