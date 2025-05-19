@@ -19,7 +19,11 @@ function preprocess_data(config, raw, combine_coils, sens, kx, ky, timepoint_win
     dcf = use_dcf ? abs.(-size(ky, 1)/2+0.5:size(ky, 1)/2) : 1.0
     dcf = dcf ./ maximum(dcf)
 
-    c_d = combine_coils ? sens : [1.0] # this shouldn't make a copy of sens
+    if use_synthetic
+        c_d = combine_coils ? ones(Float64, nx, ny, nz, config["nchan"]) : [1.0]
+    else
+        c_d = combine_coils ? sens : [1.0]
+    end
 
     # use only raw data from 1st echo (most signal), normalize non-uniform frequency on pixel size (FOV/n)
     kx_d = reshape(kx * config["FOVx"] / nx * 2 * pi, :, nky)

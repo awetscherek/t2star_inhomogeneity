@@ -14,13 +14,13 @@ function initialise_synthetic_params(eval_no, e_d, s0_d)
     im = -γ .* b0_d
     e_d .= complex.(r2_d, im)
 
-    # s0_d .= 0.0;
+    s0_d .= 0.0;
     
-    if !isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_s0.cfl")
-        @info "No S0 prediction detected - Generating prediction"    
-        synthetic_s0_prediction(eval_no)
-    end
-    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_s0.cfl"));
+    # if !isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_s0.cfl")
+    #     @info "No S0 prediction detected - Generating prediction"    
+    #     synthetic_s0_prediction(eval_no)
+    # end
+    # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_s0.cfl"));
 end
 
 function initialise_synthetic_params(eval_no, e_d, s0_fat, s0_water)

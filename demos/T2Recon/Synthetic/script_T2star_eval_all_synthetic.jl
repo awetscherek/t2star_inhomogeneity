@@ -6,7 +6,7 @@ use_dcf = true
 use_fat_modulation = false
 
 gdmode = Adam() # Lbfgs()
-gdmode = Lbfgs()
+# gdmode = Lbfgs()
 
 output_file = (gdmode isa Adam) ? "eval_results_adam.txt" : "eval_results_lbfgs.txt"
 
@@ -19,11 +19,11 @@ timepoint_window_sizes = [536, 268, 134, 67, 30, 20]
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
-ground_truth = nothing
+ground_truth = combine_coils ? Array{Float64}(undef, nx, ny, nz) : Array{Float64}(undef, nx, ny, nz, config["nchan"]);
 
 for eval_no in 1:7
 
-    info="Evaluation $eval_no:"
+    info="\n \n Evaluation $eval_no:"
     @info info
     open(output_file, "a") do f
         println(f, string(info))
@@ -40,7 +40,7 @@ for eval_no in 1:7
             gdmode,
             combine_coils=combine_coils,
             timepoint_window_size=tws,
-            sens=nothing,
+            sens=sens,
             use_dcf=use_dcf, # for some reason this seems to introduce artifacts into the image ...
             use_synthetic=true,
             eval_no = eval_no
@@ -59,7 +59,7 @@ for eval_no in 1:7
             ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_s0_fat_$tws$comb$dcf$fat_mod", ComplexF32.(s0_fat))
         end
 
-        ground_truth = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2")
+        ground_truth .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2")
 
         dqt2_loss = l2_norm(ground_truth, t2)
 

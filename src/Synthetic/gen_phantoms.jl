@@ -1,10 +1,6 @@
 function _gen_phantom(phantom_gen_func, eval_no, nchan)
     S0, T2, B0 = phantom_gen_func(nx,ny,nz)
 
-    S0 = repeat(S0, 1,1,1,nchan)
-    T2 = repeat(T2, 1,1,1,nchan)
-    B0 = repeat(B0, 1,1,1,nchan)
-
     ReadWriteCFL.writecfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2", ComplexF32.(T2))
     ReadWriteCFL.writecfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0", ComplexF32.(S0))
     ReadWriteCFL.writecfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_b0", ComplexF32.(B0))

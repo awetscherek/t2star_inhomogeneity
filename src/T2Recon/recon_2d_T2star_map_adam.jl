@@ -58,12 +58,12 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Adam; # ke
 
     # Initialise Operators with implicit values
     function synth_recon_forward_operator(e,s0)
-        return forward_operator_impl(plan2, e, nothing, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, 1.0, timepoints, selection,
+        return forward_operator_impl(plan2, e, nothing, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
         timepoint_window_size, fat_modulation, true)
     end
 
     function synth_recon_forward_operator(e, fat, water)
-        return forward_operator_impl(plan2, e, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, 1.0, timepoints, selection,
+        return forward_operator_impl(plan2, e, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
         timepoint_window_size, fat_modulation, true)
     end
 
