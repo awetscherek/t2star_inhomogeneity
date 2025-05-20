@@ -5,7 +5,7 @@ function synthetic_b0_prediction(x, eval_no)
         return
     end
 
-    @Info "Generating B0 prediction"
+    @info "Generating B0 prediction"
 
     _, _, _, _, _, _, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 

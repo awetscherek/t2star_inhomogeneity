@@ -5,10 +5,10 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
             ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no")
     end
 
-    @info "Raw data for Evaluation $eval_no fatmod not found - Generating: TEMPMODECHANGEWINDOWTO1"
+    @info "Raw data for Evaluation $eval_no fatmod not found - Generating:"
 
     #Raw data generated with NO approximation
-    timepoint_window_size = 536 #1
+    timepoint_window_size = 1
 
     dims = [nx,ny]
     tol=1e-9
@@ -75,7 +75,7 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
 
     #Create an Image reconstruction of the Raw data 
     if !isfile("/mnt/f/Dominic/Results/Synthetic/2d/synth_recon_$eval_no.cfl")
-        @Info "Generating Image Reconstruction of Synthetic Raw Data"
+        @info "Generating Image Reconstruction of Synthetic Raw Data"
         #Reconstructing Synthetic data for Intermediate Image Initial Prediction
         for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
             xe .= image_recon_synthetic_2d(config, 
