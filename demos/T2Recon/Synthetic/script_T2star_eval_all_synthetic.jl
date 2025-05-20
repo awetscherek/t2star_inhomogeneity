@@ -27,7 +27,7 @@ for eval_no in 1:7
         println(f, string(info))
     end
 
-    y_d, intermediate_t2 = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, fat_modulation)
+    y_d, intermediate_t2 = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation)
 
     ground_truth = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2")
 
