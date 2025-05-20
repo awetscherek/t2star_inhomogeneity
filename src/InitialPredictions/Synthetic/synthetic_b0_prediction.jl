@@ -1,19 +1,17 @@
-function synthetic_b0_prediction(eval_no)
-    config, _, _, _, _, _, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
+function synthetic_b0_prediction(x, eval_no)
 
-    # Configure which values of x are used for generation
-    combine_coils = true
-    use_dcf = true
-    comb = combine_coils ? "" : "_no_combine_coils"
-    dcf = use_dcf ? "_dcf" : ""
+    if (isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no.cfl")
+        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase_$eval_no.cfl"))
+        return
+    end
 
-    x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"], config["necho"]);
-    x .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/$(eval_no)_synth_recon")
+    @Info "Generating B0 prediction"
+
+    _, _, _, _, _, _, time_since_last_rf = load_demo_data("/mnt/f/Dominic/Data/raw_000.data", use_float32=true, use_nom_kz=true);
 
     time_since_last_rf = Float64.(time_since_last_rf)
 
     echo_times = vec(time_since_last_rf[268,:,1,1])
-    # echo_times .*= 1e-3
 
     # Mask values lower than a threshold of magnitude
     mag = mean(abs.(x), dims=4)   # → size (nx,ny,nz)
@@ -60,6 +58,8 @@ function synthetic_b0_prediction(eval_no)
     Δb0  = reshape(a ./ γ, nx, ny, nz)
     init_phase = reshape(b, nx, ny, nz)
 
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_delta_b0", ComplexF32.(Δb0))
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_init_phase", ComplexF32.(init_phase))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no", ComplexF32.(Δb0))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase_$eval_no", ComplexF32.(init_phase))
+
+    return Δb0, init_phase
 end

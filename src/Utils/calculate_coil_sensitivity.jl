@@ -47,3 +47,7 @@ function calculate_synthetic_coil_sensitivity(config, eval_no, kx, ky, y_d)
     # load coil sensitivities into Julia
     return ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/coil_sens/Synthetic/$(eval_no)_sens.cfl")
 end
+
+function calculate_synthetic_coil_sensitivity(config)
+    return ones(Float64, nx, ny, nz, config["nchan"])
+end

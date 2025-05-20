@@ -36,7 +36,12 @@ function preprocess_data(config, raw, combine_coils, sens, kx, ky, timepoint_win
 
     dcf_d = use_dcf ? repeat(sqrt.(dcf), outer=(size(ky, 2), size(ky, 3)))[selection] : 1.0
 
-    y_d = reshape(ComplexF64.(permutedims(raw, [1 3 5 4 2])) .* dcf_y, nkx * config["necho"], :, nz * config["nchan"])[selection, :]
+
+    if use_synthetic
+        y_d = raw #generated y_d data passed in
+    else
+        y_d = reshape(ComplexF64.(permutedims(raw, [1 3 5 4 2])) .* dcf_y, nkx * config["necho"], :, nz * config["nchan"])[selection, :]
+    end
 
     num_total_timepoints = config["necho"] * nkx
     num_timepoints = ceil(Int, num_total_timepoints / timepoint_window_size)

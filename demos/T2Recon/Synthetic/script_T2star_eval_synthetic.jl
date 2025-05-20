@@ -24,14 +24,16 @@ timepoint_window_size = 536
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
+y_d, intermediate_t2 = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation)
+
 open(output_file, "a") do f
-    println(f, "Evaluation $eval_no:")
+    println(f, "\n \n Evaluation $eval_no:")
 end
 
 t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
     @view(kx[:, :, :, :]),
     @view(ky[:, :, :, :]),
-    @view(raw[:, :, :, :, :]),
+    y_d,
     timepoints,
     fat_modulation=use_fat_modulation ? fat_modulation : nothing,
     [nx, ny],
@@ -45,7 +47,6 @@ t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
 );
 
 ground_truth = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2")
-intermediate_t2 = ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/$(eval_no)_t2")
 
 dqt2_loss = l2_norm(ground_truth, t2)
 intermediate_loss = l2_norm(ground_truth, intermediate_t2)

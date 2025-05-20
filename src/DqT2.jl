@@ -49,6 +49,7 @@ include("InitialPredictions.jl")
 include("Synthetic.jl")
 
 export SyntheticPhantoms
+export load_synthetic_data
 
 include("T2Recon.jl")
 
