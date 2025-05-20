@@ -2,7 +2,8 @@ function synthetic_b0_prediction(x, eval_no)
 
     if (isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no.cfl")
         && isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase_$eval_no.cfl"))
-        return
+        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no"),
+            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase_$eval_no")
     end
 
     @info "Generating B0 prediction"

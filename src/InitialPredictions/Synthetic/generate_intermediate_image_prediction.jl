@@ -10,7 +10,6 @@ function generate_intermediate_image_prediction(x, b0, s0_phase, eval_no)
 
     echo_times = time_since_last_rf[268,:,1,1]
 
-    println("Data Loaded")
 
     t2, s0_mag = fit_t2star(x, echo_times, b0, s0_phase)
 

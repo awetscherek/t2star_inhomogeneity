@@ -26,16 +26,16 @@ end
 """
 Generate a circular phantom with complex S0 phase:
 """
-function circle_phantom(nx, ny, nz; R=0.4, TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
+function circle_phantom(nx, ny, nz; R=0.6, TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
     xs = LinRange(-1.0, 1.0, nx)
     ys = LinRange(-1.0, 1.0, ny)
     S0  = zeros(ComplexF64, nx, ny, nz)
     T2s = zeros(Float64, nx, ny, nz)
     B0  = zeros(Float64, nx, ny, nz)
+    S0 .= 1.0 + 0.0im
     for k in 1:nz, j in 1:ny, i in 1:nx
         r = sqrt(xs[i]^2 + ys[j]^2)
         if r <= R
-            S0[i,j,k]  = 1.0 + 0.0im
             T2s[i,j,k] = 50.0
         end
     end
