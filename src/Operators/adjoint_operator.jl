@@ -17,7 +17,7 @@ function adjoint_operator_impl(plan1, r, e_d, s0_fat_d, s0_water_d, dcf_d, combi
         t_ms = approximate_time(timepoints, t_start, t_end, :nearest_neighbour)
 
         # Get the boolean mask for timepoint t (assume selection is 2D with one row per timepoint)
-        sel = selection[t_start:t_end, :]
+        sel = selection[:,t_start:t_end]
         npoints = sum(sel)
 
         # Extract the segment of the residual corresponding to timepoint t.
@@ -26,8 +26,8 @@ function adjoint_operator_impl(plan1, r, e_d, s0_fat_d, s0_water_d, dcf_d, combi
 
         dcf_t = use_dcf ? view(dcf_d, start_idx:start_idx+npoints-1) : 1.0
 
-        kx_d_t = collect(kx_d[t_start:t_end, :][sel])
-        ky_d_t = collect(ky_d[t_start:t_end, :][sel])
+        kx_d_t = collect(kx_d[:, t_start:t_end][sel])
+        ky_d_t = collect(ky_d[:, t_start:t_end][sel])
 
         finufft_setpts!(plan1, kx_d_t, ky_d_t)
 
@@ -82,17 +82,16 @@ function adjoint_operator_impl(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, n
         t_ms = approximate_time(timepoints, t_start, t_end, :nearest_neighbour)
 
         # Get the boolean mask for timepoint t (assume selection is 2D with one row per timepoint)
-        sel = selection[t_start:t_end, :]
+        sel = selection[:, t_start:t_end]
         npoints = sum(sel)
 
         # Extract the segment of the residual corresponding to timepoint t.
         r_t = r[start_idx:start_idx+npoints-1, :]
-        # fat_modulation_t = fat_modulation[start_idx:start_idx+npoints-1]
 
         dcf_t = use_dcf ? view(dcf_d, start_idx:start_idx+npoints-1) : 1.0
 
-        kx_d_t = collect(kx_d[t_start:t_end, :][sel])
-        ky_d_t = collect(ky_d[t_start:t_end, :][sel])
+        kx_d_t = collect(kx_d[:, t_start:t_end][sel])
+        ky_d_t = collect(ky_d[:, t_start:t_end][sel])
 
         finufft_setpts!(plan1, kx_d_t, ky_d_t)
 

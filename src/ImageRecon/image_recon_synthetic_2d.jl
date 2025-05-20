@@ -19,8 +19,8 @@ function image_recon_synthetic_2d(config, kx, ky, y_d; # keyword arguments:
     c_d = combine_coils ? sens : [1.0]; # this shouldn't make a copy of sens
 
     # use only raw data from 1st echo (most signal), normalize non-uniform frequency on pixel size (FOV/n)
-    kx_d = reshape(kx * config["FOVx"] / nx * 2 * pi, :);
-    ky_d = reshape(ky * config["FOVy"] / ny * 2 * pi, :);
+    kx_d = reshape(permutedims(kx, [2 1 3]) * config["FOVx"] / nx * 2 * pi, :);
+    ky_d = reshape(permutedims(ky, [2 1 3]) * config["FOVy"] / ny * 2 * pi, :);
 
     # and use only data from central k-space region:
     selection = -pi .<= kx_d .< pi .&& -pi .<= ky_d .< pi;

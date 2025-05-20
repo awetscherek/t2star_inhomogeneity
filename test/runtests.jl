@@ -21,7 +21,7 @@ tol=1e-9
 #Precision of approximation of timepoints
 # 1 - No approximation (NUFFT for every time point)
 # nkx (536) - Echo time of each assumed to be the timepoint
-timepoint_window_size = 536
+timepoint_window_size = 268
 
 (
     y_d,
@@ -54,15 +54,6 @@ r = Array{ComplexF64}(undef, size(y_d))
 #------------------------------------------------------
 #Setup test functions
 
-function flatten(X,Y)
-    return vcat(vec(X), vec(Y))
-end
-
-function unflatten(X)
-    N = length(X) ÷ 2
-    return reshape(X[1:N], size(e_d)), reshape(X[N+1:end], size(s0_d))
-end
-
 # Initialise Operators with implicit values
 function forward_operator(e,fat,water)
     r .= forward_operator_impl(plan2, e, fat,water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
@@ -86,10 +77,6 @@ function forward_operator(e,s0)
     return obj
 end
 
-# function adjoint_operator!(r2, b0, fat, water)
-#     return adjoint_operator_impl(plan1, r, r2, b0, fat, water, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,
-#     timepoints, kx_d, ky_d, selection, use_dcf, timepoint_window_size, fat_modulation,config["nchan"])
-# end
 
 function adjoint_operator(e, s0)
     return adjoint_operator_impl(plan1, r, e, s0, dcf_d, combine_coils, c_d, num_timepoints, num_total_timepoints,

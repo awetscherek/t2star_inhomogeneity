@@ -2,7 +2,7 @@ function calculate_fat_modulation(timepoints)
 
     nkx, necho, _, _ = size(timepoints)
 
-    fat_modulation = zeros(ComplexF64, necho, nkx)
+    fat_modulation = zeros(ComplexF64, nkx, necho)
     
     # Relative amplitudes and Frequency offsets using the six peak model
     frequency_offsets = Float64[-3.80, -3.40, -2.60, -1.94, -0.39, 0.60] #TODO: check scaling
@@ -14,7 +14,7 @@ function calculate_fat_modulation(timepoints)
         t_echo = @view timepoints[:,ie,1,1]
 
         @inbounds for (amp, freq) in zip(relative_amplitudes, frequency_offsets)
-            fat_modulation[ie, :] .+= amp .* exp.(im .* 2 .* π .* freq .* t_echo)
+            fat_modulation[:, ie] .+= amp .* exp.(im .* 2 .* π .* freq .* t_echo)
         end
     end
     
