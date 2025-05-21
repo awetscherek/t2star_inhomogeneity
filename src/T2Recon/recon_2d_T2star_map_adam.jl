@@ -104,7 +104,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Adam; # ke
     else
         model = (S0 = s0_d, e = e_d)
     end
-    state = Optimisers.setup(Optimisers.AdamW(couple=false), model)
+    step_size = 2e-3
+    state = Optimisers.setup(Optimisers.Adam(eta=step_size), model)
 
     for it = 1:niter
         if !isnothing(fat_modulation)

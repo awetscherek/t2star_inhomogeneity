@@ -48,7 +48,7 @@ function preprocess_data(config, raw, combine_coils, sens, kx, ky, timepoint_win
 
     # Reshape fat modulation so it can be easily multiplied in k-space
     if !isnothing(fat_modulation)
-        fat_modulation = repeat(vec(fat_modulation), nky, 1)[selection]
+        fat_modulation = repeat(reshape(vec(fat_modulation),1,:), nky, 1)[selection]
     end
 
     return y_d, kx_d, ky_d, dcf_d, c_d, selection, num_timepoints, num_total_timepoints, fat_modulation

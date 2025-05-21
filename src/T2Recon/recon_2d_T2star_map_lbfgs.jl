@@ -144,7 +144,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Lbfgs; # k
     else
         results = optimize(forward_operator, adjoint_operator!,
             initial_guess,
-            GradientDescent(),
+            LBFGS(),
             Optim.Options(
                 show_trace=true,
                 iterations = niter))

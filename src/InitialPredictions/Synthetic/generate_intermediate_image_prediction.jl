@@ -1,7 +1,8 @@
 function generate_intermediate_image_prediction(x, b0, s0_phase, eval_no)
     if (isfile("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no.cfl")
         && isfile("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/s0_$eval_no.cfl"))
-        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no")
+        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no"), 
+                ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/s0_$eval_no")
     end
 
     @info "Generating Intermediate Image Prediction"
@@ -17,5 +18,5 @@ function generate_intermediate_image_prediction(x, b0, s0_phase, eval_no)
 
     ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no", ComplexF32.(t2))
     ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/s0_$eval_no", ComplexF32.(s0))
-    return t2
+    return t2, s0
 end

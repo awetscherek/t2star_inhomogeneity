@@ -1,11 +1,23 @@
 function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation)
 
-    if isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no.cfl")
-        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no"),
-            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no")
-    end
+    if (!isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2.cfl")
+        || !isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0.cfl")
+        || !isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_b0.cfl"))
+        @info "Generating Synthetic Data"
 
-    @info "Raw data for Evaluation $eval_no fatmod not found - Generating:"
+        phantom(eval_no)
+    end
+    
+    if (isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no.cfl")
+        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no.cfl")
+        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/s0_$eval_no.cfl")
+        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no.cfl"))
+        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no"),
+            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no"),
+            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/s0_$eval_no"),
+            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no")
+
+    end
 
     #Raw data generated with NO approximation
     timepoint_window_size = 1
@@ -43,38 +55,33 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
         timepoint_window_size, fat_modulation, true)
     end
 
-    #function modified later to add noise to kspace
-    if (!isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2.cfl")
-        || !isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0.cfl")
-        || !isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_b0.cfl"))
-        @info "Generating Synthetic Data"
-
-        phantom(eval_no, config["nchan"])
-    end
-
-    r2 = 1 ./ Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2"))
-    s0 = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0"))
-    b0 = Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_b0"))
-
-    im = -γ .* b0
-    e = complex.(r2, im)
-
-    y = synth_recon_forward_operator(e, s0)
-    
-    y_d = vcat(y...)
-
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no", ComplexF32.(y_d))
-
-    time_step = ceil(Int, size(kx)[1] / timepoint_window_size)
-
-    if combine_coils
-        c_d = calculate_synthetic_coil_sensitivity(config)
-    end
-
     x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"], config["necho"]);
 
-    #Create an Image reconstruction of the Raw data 
-    if !isfile("/mnt/f/Dominic/Results/Synthetic/2d/synth_recon_$eval_no.cfl")
+    if (!isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no.cfl")
+        || !isfile("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no.cfl"))
+
+        @info "Raw data for Evaluation $eval_no fatmod not found - Generating:"
+
+        r2 = 1 ./ Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2"))
+        s0 = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0"))
+        b0 = Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_b0"))
+
+        im = -γ .* b0
+        e = complex.(r2, im)
+
+        y = synth_recon_forward_operator(e, s0)
+        
+        y_d = vcat(y...)
+
+        ReadWriteCFL.writecfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no", ComplexF32.(y_d))
+
+        time_step = ceil(Int, size(kx)[1] / timepoint_window_size)
+
+        if combine_coils
+            c_d = calculate_synthetic_coil_sensitivity(config)
+        end
+
+
         @info "Generating Image Reconstruction of Synthetic Raw Data"
         #Reconstructing Synthetic data for Intermediate Image Initial Prediction
         for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
@@ -87,8 +94,9 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
             use_dcf = use_dcf,
             )
         end
-        ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no", ComplexF32.(x))
+        ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no", ComplexF32.(x)) 
     else
+        y_d = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no")
         x .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no")
     end
 
@@ -103,9 +111,9 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
     b0, s0_phase = synthetic_b0_prediction(x, eval_no)
 
     #Generate an Intermediate Image reconstruction of the T2
-    intermediate_t2 = generate_intermediate_image_prediction(x, b0, s0_phase, eval_no)
+    intermediate_t2, intermediate_s0 = generate_intermediate_image_prediction(x, b0, s0_phase, eval_no)
     
-    return y_d, intermediate_t2
+    return y_d, intermediate_t2, intermediate_s0, b0
 end
 
 function load_synthetic_data_fatmod(eval_no, config, combine_coils, sens, kx, ky, use_dcf, fat_modulation)
@@ -153,7 +161,7 @@ function load_synthetic_data_fatmod(eval_no, config, combine_coils, sens, kx, ky
         || !isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_b0.cfl"))
         @info "Generating Synthetic Data"
 
-        phantom_fatmod(eval_no, nchan) ## change
+        phantom_fatmod(eval_no) ## change
     end
 
     r2 = 1 ./ Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2"))
@@ -206,14 +214,14 @@ function load_synthetic_data_fatmod(eval_no, config, combine_coils, sens, kx, ky
     return vcat(y...), nothing
 end
 
-function phantom(x,a)
+function phantom(x)
     name = Symbol("gen_phantom_$x")
     f = getfield(@__MODULE__, name)
-    return f(x,a)
+    return f(x)
 end
 
-function phantom_fatmod(x,a)
+function phantom_fatmod(x)
     name = Symbol("gen_phantom_fatmod_$x")
     f = getfield(@__MODULE__, name)
-    return f(x,a)
+    return f(x)
 end

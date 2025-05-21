@@ -3,7 +3,7 @@ using DqT2
 # Configure Settings
 combine_coils = true
 use_dcf = true
-use_fat_modulation = false
+use_fat_modulation = true
 
 gdmode = Adam()
 
@@ -32,11 +32,12 @@ comb = combine_coils ? "" : "_no_combine_coils"
 dcf = use_dcf ? "_dcf" : ""
 fat_mod = use_fat_modulation ? "_fatmod" : ""
 water = use_fat_modulation ? "_water" : ""
+mode = (gdmode isa Adam) ? "_adam" : "_lbfgs"
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/t2_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(t2))
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/s0$(water)_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(s0_water))
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/delta_b0_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(Δb0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/t2_$timepoint_window_size$comb$dcf$mode$fat_mod", ComplexF32.(t2))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/s0$(water)_$timepoint_window_size$comb$dcf$mode$fat_mod", ComplexF32.(s0_water))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/delta_b0_$timepoint_window_size$comb$dcf$mode$fat_mod", ComplexF32.(Δb0))
 
 if use_fat_modulation
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/s0_fat_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(s0_fat))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/T2/2d/s0_fat_$timepoint_window_size$comb$dcf$mode$fat_mod", ComplexF32.(s0_fat))
 end

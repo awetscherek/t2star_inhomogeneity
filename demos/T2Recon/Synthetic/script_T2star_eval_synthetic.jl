@@ -4,13 +4,45 @@ using DqT2
 combine_coils = true
 use_dcf = true
 use_fat_modulation = false
-eval_no = 1
+eval_no = 4
 
-gdmode = Adam() # Lbfgs()
+gdmode = Adam()
 
 output_file = (gdmode isa Adam) ? "eval_results_adam.txt" : "eval_results_lbfgs.txt"
 
-@assert eval_no >= 1 && eval_no <= 7
+@assert eval_no >= 1 && eval_no <= 6
+
+function evaluate(gt_t2, gt_s0, gt_b0, rc_t2, rc_s0, rc_b0)
+
+    l2_t2 = l2_norm(gt_t2 ./ 1000, rc_t2 ./ 1000)
+    l2_s0 = l2_norm(gt_s0, rc_s0)
+    l2_b0 = l2_norm(gt_b0, rc_b0)
+    l2_total = l2_t2 + l2_s0 + l2_b0
+
+    info="T2 Loss: $l2_t2 \n"
+    @info info
+    open(output_file, "a") do f
+        println(f, string(info))
+    end
+
+    info="S0 Loss: $l2_s0 \n"
+    @info info
+    open(output_file, "a") do f
+        println(f, string(info))
+    end
+
+    info="B0 Loss: $l2_b0 \n"
+    @info info
+    open(output_file, "a") do f
+        println(f, string(info))
+    end
+
+    info="Total Loss: $l2_total \n"
+    @info info
+    open(output_file, "a") do f
+        println(f, string(info))
+    end
+end
 
 function l2_norm(gt, rc)
     diff = gt .- rc
@@ -20,11 +52,11 @@ end
 #Precision of approximation of timepoints
 # 1 - No approximation (NUFFT for every time point)
 # nkx (536) - Echo time of each assumed to be the timepoint
-timepoint_window_size = 536
+timepoint_window_size = 268
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
-y_d, intermediate_t2 = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation)
+y_d, intermediate_t2, intermediate_s0, intermediate_b0 = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation)
 
 open(output_file, "a") do f
     println(f, "\n \n Evaluation $eval_no:")
@@ -46,32 +78,34 @@ t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
     eval_no = eval_no
 );
 
-ground_truth = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2")
+gt_t2 = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2")
+gt_s0 = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0")
+gt_b0 = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_b0")
 
-dqt2_loss = l2_norm(ground_truth, t2)
-intermediate_loss = l2_norm(ground_truth, intermediate_t2)
-
-info="DQT2: \n Timepoint Window Size: $timepoint_window_size \n Loss: $dqt2_loss"
+info="DQT2: \n Timepoint Window Size: $timepoint_window_size \n"
 @info info
 open(output_file, "a") do f
     println(f, string(info))
 end
+evaluate(gt_t2, gt_s0, gt_b0, t2, s0_water, Δb0)
 
-info="Intermediate Image: \n Loss: $intermediate_loss"
+info="Intermediate Image: \n"
 @info info
 open(output_file, "a") do f
     println(f, string(info))
 end
+evaluate(gt_t2, gt_s0, gt_b0, intermediate_t2, intermediate_s0, intermediate_b0)
 
 comb = combine_coils ? "" : "_no_combine_coils"
 dcf = use_dcf ? "_dcf" : ""
 fat_mod = use_fat_modulation ? "_fatmod" : ""
 water = use_fat_modulation ? "_water" : ""
+mode = (gdmode isa Adam) ? "_adam" : "_lbfgs"
 
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_t2_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(t2))
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_s0$(water)_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(s0_water))
-ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_delta_b0_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(Δb0))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_t2_$timepoint_window_size$comb$dcf$mode$fat_mod", ComplexF32.(t2))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_s0$(water)_$timepoint_window_size$comb$dcf$mode$fat_mod", ComplexF32.(s0_water))
+ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_delta_b0_$timepoint_window_size$comb$dcf$mode$fat_mod", ComplexF32.(Δb0))
 
 if use_fat_modulation
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_s0_fat_$timepoint_window_size$comb$dcf$fat_mod", ComplexF32.(s0_fat))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_s0_fat_$timepoint_window_size$comb$dcf$mode$fat_mod", ComplexF32.(s0_fat))
 end
