@@ -1,20 +1,21 @@
 function forward_operator_impl(plan2, e_d, s0_fat_d, s0_water_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
-    c_d, timepoints, selection, timepoint_window_size, fat_modulation = nothing, synth_recon=false)
+    c_d, timepoints, selection, timepoint_window_size, fat_modulation = nothing)
     if !isnothing(fat_modulation)
         y_water = _forward_operator_impl(plan2, e_d, s0_water_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
-        c_d, timepoints, selection, timepoint_window_size, synth_recon)
+        c_d, timepoints, selection, timepoint_window_size)
         y_fat = _forward_operator_impl(plan2, e_d, s0_fat_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
-        c_d, timepoints, selection, timepoint_window_size, synth_recon)
+        c_d, timepoints, selection, timepoint_window_size)
+
         return y_water .+ fat_modulation .* y_fat
     else
         # Not utilising Fat Modulation, implicitly assume that everything is Water
         return _forward_operator_impl(plan2, e_d, s0_water_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
-        c_d, timepoints, selection, timepoint_window_size, synth_recon)
+        c_d, timepoints, selection, timepoint_window_size)
     end
 end
 
 function _forward_operator_impl(plan2, e_d, s0_d, num_timepoints, num_total_timepoints, kx_d, ky_d,
-    c_d, timepoints, selection, timepoint_window_size, synth_recon)
+    c_d, timepoints, selection, timepoint_window_size)
     dbg("debug information for $timepoint_window_size \n")
     dbg("timepoints in order?")
     dbg(all(diff(timepoints) .>=0))
@@ -46,9 +47,6 @@ function _forward_operator_impl(plan2, e_d, s0_d, num_timepoints, num_total_time
         dbg("--------------------------------\n")
 
         y_list[t] = y_t
-    end
-    if synth_recon
-        return y_list
     end
     y = vcat(y_list...)
     return y

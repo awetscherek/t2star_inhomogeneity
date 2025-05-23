@@ -2,7 +2,7 @@ using DqT2
 
 # Configure Settings
 combine_coils = true
-use_dcf = true
+use_dcf = false
 use_fat_modulation = false
 
 gdmode = Adam() # Lbfgs()
@@ -51,7 +51,7 @@ timepoint_window_sizes = [536, 268, 134, 67, 30, 20]
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
-for eval_no in 2:6
+for eval_no in 1:5
 
     info="\n \n Evaluation $eval_no:"
     @info info

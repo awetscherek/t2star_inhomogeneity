@@ -1,9 +1,11 @@
-function synthetic_b0_prediction(x, eval_no)
+function synthetic_b0_prediction(x, eval_no, use_fatmod=false)
 
-    if (isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no.cfl")
-        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase_$eval_no.cfl"))
-        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no"),
-            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase_$eval_no")
+    fm = use_fatmod ? "_fatmod" : ""
+
+    if (isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0$(fm)_$eval_no.cfl")
+        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase$(fm)_$eval_no.cfl"))
+        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0$(fm)_$eval_no"),
+            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase$(fm)_$eval_no")
     end
 
     @info "Generating B0 prediction"
@@ -59,8 +61,8 @@ function synthetic_b0_prediction(x, eval_no)
     Δb0  = reshape(a ./ γ, nx, ny, nz)
     init_phase = reshape(b, nx, ny, nz)
 
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no", ComplexF32.(Δb0))
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase_$eval_no", ComplexF32.(init_phase))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0$(fm)_$eval_no", ComplexF32.(Δb0))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase$(fm)_$eval_no", ComplexF32.(init_phase))
 
     return Δb0, init_phase
 end
