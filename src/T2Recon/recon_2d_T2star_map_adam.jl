@@ -3,7 +3,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Adam; # ke
     sens=nothing,             # coil sensitivities ...
     use_dcf=false,            # whether to use pre-conditioner
     tol=1e-9,                 # tolerance for FINUFFT
-    niter=use_dcf ? 10 : 100, # number of gradient descent iterations
+    niter=use_dcf ? 5 : 100, # number of gradient descent iterations
     timepoint_window_size=536,  # number of samples within each timepoint approximation window
     fat_modulation=nothing,
     use_synthetic=false,
@@ -104,8 +104,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Adam; # ke
     else
         model = (S0 = s0_d, e = e_d)
     end
-    step_size = 1e-4
-    state = Optimisers.setup(Optimisers.Adam(eta=step_size), model)
+    state = Optimisers.setup(Optimisers.Adam(), model)
 
     for it = 1:niter
         if !isnothing(fat_modulation)

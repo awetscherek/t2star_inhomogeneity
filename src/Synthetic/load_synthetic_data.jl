@@ -1,4 +1,4 @@
-function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation)
+function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation, σ=nothing)
 
     if (!isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2.cfl")
         || !isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0.cfl")
@@ -7,23 +7,31 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
 
         phantom(eval_no)
     end
+
+    if !isnothing(σ)
+        rounded = round(σ; digits=10)
+        safe_str = replace(string(rounded), "." => "_", "-" => "m")
+        σ_suffix = "_$safe_str"
+    else
+        σ_suffix = ""
+    end
     
-    if (isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no.cfl")
+    
+    if (isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix.cfl")
         && isfile("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no.cfl")
         && isfile("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/s0_$eval_no.cfl")
         && isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no.cfl"))
-        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no"),
+        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix"),
             ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no"),
             ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/s0_$eval_no"),
             ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no")
-
     end
 
     #Raw data generated with NO approximation
     timepoint_window_size = 1
 
     dims = [nx,ny]
-    tol=1e-9
+    tol=1e-9 #maybe change
 
     plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)
 
@@ -51,25 +59,27 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
         )
 
     function synth_recon_forward_operator(e,s0)
+        return forward_operator_impl(plan2, e, nothing, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
+        timepoint_window_size, fat_modulation)
+    end
+
+    function split_ksp_by_echo(ksp)
         #Split into echos
         echo_splits = [142730, 142699, 142700, 142698, 142701, 142698, 142701, 142697]
         offsets = cumsum([0; echo_splits])
 
-        y = forward_operator_impl(plan2, e, nothing, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
-        timepoint_window_size, fat_modulation)
-
         return [
-            @view y[offsets[i]+1:offsets[i+1],:]
+            @view ksp[offsets[i]+1:offsets[i+1],:]
             for i in 1:length(echo_splits)
         ]
     end
 
     x = combine_coils ? Array{ComplexF64}(undef, nx, ny, nz, config["necho"]) : Array{ComplexF64}(undef, nx, ny, nz, config["nchan"], config["necho"]);
 
-    if (!isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no.cfl")
-        || !isfile("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no.cfl"))
+    if (!isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix.cfl")
+        || !isfile("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no$σ_suffix.cfl"))
 
-        @info "Raw data for Evaluation $eval_no fatmod not found - Generating:"
+        @info "Raw data for Evaluation $eval_no fatmod not found for σ = $(isnothing(σ) ? 0 : σ) - Generating:"
 
         r2 = 1 ./ Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2"))
         s0 = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0"))
@@ -78,13 +88,24 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
         im = -γ .* b0
         e = complex.(r2, im)
 
-        y = synth_recon_forward_operator(e, s0)
+        if isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no.cfl")
+            y_d = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no")
+
+            if !isnothing(σ)
+                y_d = add_kspace_noise(y_d, σ)
+            #     ReadWriteCFL.writecfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix", ComplexF32.(y_d))
+            end
+        else
+            y_d = synth_recon_forward_operator(e, s0)
+            ReadWriteCFL.writecfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no", ComplexF32.(y_d))
+
+            if !isnothing(σ)
+                y_d = add_kspace_noise(y_d, σ)
+                # ReadWriteCFL.writecfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix", ComplexF32.(y_d))
+            end
+        end
         
-        y_d = vcat(y...)
-
-        ReadWriteCFL.writecfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no", ComplexF32.(y_d))
-
-        time_step = ceil(Int, size(kx)[1] / timepoint_window_size)
+        y = split_ksp_by_echo(y_d)
 
         if combine_coils
             c_d = calculate_synthetic_coil_sensitivity(config)
@@ -97,30 +118,30 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
             xe .= image_recon_synthetic_2d(config, 
             @view(kx[:, ie, :, :]),
             @view(ky[:, ie, :, :]),
-            vcat(y[(ie-1)*time_step + 1:ie*time_step]...),
+            y[ie],
             combine_coils = combine_coils,
             sens = c_d,
             use_dcf = use_dcf,
             )
         end
-        ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no", ComplexF32.(x)) 
+        ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no$σ_suffix", ComplexF32.(x)) 
     else
-        y_d = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no")
-        x .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no")
+        y_d = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix")
+        x .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no$σ_suffix")
     end
 
     #Generate Initial Predictions
 
     # We use the first echo reconstruction as an initial guess
-    if !isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/s0_$eval_no.cfl")
-        ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/s0_$eval_no", ComplexF32.(x[:,:,:,1]))
+    if !isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/s0_$eval_no$σ_suffix.cfl")
+        ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/s0_$eval_no$σ_suffix", ComplexF32.(x[:,:,:,1]))
     end
 
     # Initial Guess of B0
-    b0, s0_phase = synthetic_b0_prediction(x, eval_no)
+    b0, s0_phase = synthetic_b0_prediction(x, eval_no, σ=σ)
 
     #Generate an Intermediate Image reconstruction of the T2
-    intermediate_t2, intermediate_s0 = generate_intermediate_image_prediction(x, b0, s0_phase, eval_no)
+    intermediate_t2, intermediate_s0 = generate_intermediate_image_prediction(x, b0, s0_phase, eval_no, σ=σ)
     
     return y_d, intermediate_t2, intermediate_s0, b0
 end
@@ -182,16 +203,18 @@ function load_synthetic_data_fatmod(eval_no, config, combine_coils, sens, kx, ky
         true
         )
 
-    function synth_recon_forward_operator_fatmod(e,fat,water)
+    function synth_recon_forward_operator_fatmod(e,fat, water)
+        return forward_operator_impl(plan2, e, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
+        timepoint_window_size, fat_modulation)
+    end
+
+    function split_ksp_by_echo(ksp)
         #Split into echos
         echo_splits = [142730, 142699, 142700, 142698, 142701, 142698, 142701, 142697]
         offsets = cumsum([0; echo_splits])
 
-        y = forward_operator_impl(plan2, e, fat, water, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
-        timepoint_window_size, fat_modulation)
-
         return [
-            @view y[offsets[i]+1:offsets[i+1],:]
+            @view ksp[offsets[i]+1:offsets[i+1],:]
             for i in 1:length(echo_splits)
         ]
     end
@@ -211,13 +234,11 @@ function load_synthetic_data_fatmod(eval_no, config, combine_coils, sens, kx, ky
         im = -γ .* b0
         e = complex.(r2, im)
 
-        y = synth_recon_forward_operator_fatmod(e, fat, water)
+        y_d = synth_recon_forward_operator_fatmod(e, fat, water)
         
-        y_d = vcat(y...)
+        y = split_ksp_by_echo(y_d)
 
         ReadWriteCFL.writecfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_fatmod_$eval_no", ComplexF32.(y_d))
-
-        time_step = ceil(Int, size(kx)[1] / timepoint_window_size)
 
         if combine_coils
             c_d = calculate_synthetic_coil_sensitivity(config)
@@ -230,7 +251,7 @@ function load_synthetic_data_fatmod(eval_no, config, combine_coils, sens, kx, ky
             xe .= image_recon_synthetic_2d(config, 
             @view(kx[:, ie, :, :]),
             @view(ky[:, ie, :, :]),
-            vcat(y[(ie-1)*time_step + 1:ie*time_step]...),
+            y[ie],
             combine_coils = combine_coils,
             sens = c_d,
             use_dcf = use_dcf,
@@ -272,4 +293,15 @@ function phantom_fatmod(x)
     name = Symbol("gen_phantom_fatmod_$x")
     f = getfield(@__MODULE__, name)
     return f(x)
+end
+
+function add_kspace_noise(ksp, σ)
+
+    if isnothing(σ) || σ == 0
+        return ksp
+    end
+
+    noise_real = σ * randn(eltype(real(ksp)), size(ksp))
+    noise_imag = σ * randn(eltype(real(ksp)), size(ksp))
+    return ksp .+ complex.(noise_real, noise_imag)
 end

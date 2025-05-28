@@ -15,15 +15,11 @@ function gen_phantom_2(eval_no)
 end
 
 function gen_phantom_3(eval_no)
-    _gen_phantom(SyntheticPhantoms.radial_rings_phantom, eval_no)
-end
-
-function gen_phantom_4(eval_no)
     _gen_phantom(SyntheticPhantoms.linear_gradient_phantom, eval_no)
 end
 
-function gen_phantom_5(eval_no)
-    _gen_phantom(SyntheticPhantoms.smooth_random_phantom, eval_no)
+function gen_phantom_4(eval_no)
+    _gen_phantom(SyntheticPhantoms.linear_gradient_t2_b0, eval_no)
 end
 
 #Fatmod

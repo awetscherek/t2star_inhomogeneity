@@ -60,39 +60,21 @@ end
 """
 Checkerboard pattern with complex S0 phase:
 """
-function checkerboard_phantom(nx, ny, nz; nblocks=8, TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
+function checkerboard_phantom(nx, ny, nz; nblocks=8, b0_min::Float64=-550.0/(1000*γ), b0_max::Float64= 550.0/(1000*γ),
+                                                    TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
     xs = LinRange(0.0, 1.0, nx)
     ys = LinRange(0.0, 1.0, ny)
     S0  = fill(1.0 + 0.0im, nx, ny, nz)
     T2s = zeros(Float64, nx, ny, nz)
     B0  = zeros(Float64, nx, ny, nz)
+
     for k in 1:nz, j in 1:ny, i in 1:nx
         bi = floor(Int, xs[i]*nblocks)
         bj = floor(Int, ys[j]*nblocks)
         T2s[i,j,k] = (isodd(bi + bj) ? 30.0 : 80.0)
-        B0[i,j,k]  = 20.0/(1000 * γ) * sin(2π*xs[i]) * sin(2π*ys[j])
-    end
-    apply_phase!(S0, B0, xs, ys; φ0=φ0, φx=φx, φy=φy, TE0=TE0)
-    return S0, T2s, B0
-end
 
-"""
-Radial rings with complex S0 phase:
-"""
-function radial_rings_phantom(nx, ny, nz; M=5, TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
-    xs = LinRange(-1.0, 1.0, nx)
-    ys = LinRange(-1.0, 1.0, ny)
-    S0  = zeros(ComplexF64, nx, ny, nz)
-    T2s = zeros(Float64, nx, ny, nz)
-    B0  = zeros(Float64, nx, ny, nz)
-    ΔR = 1.0 / M
-    for k in 1:nz, j in 1:ny, i in 1:nx
-        r = sqrt(xs[i]^2 + ys[j]^2)
-        ring = clamp(floor(Int, r/ΔR) + 1, 1, M)
-        amp = 1.0 + 0.2*(ring - (M+1)/2)/((M-1)/2)
-        S0[i,j,k]  = amp + 0.0im
-        T2s[i,j,k] = 20.0 + 60.0*(ring-1)/(M-1)
-        B0[i,j,k]  = 10/(1000 * γ) * cos(2π*r/ΔR)
+        # Left-right gradient for B0
+        B0[i,j,k]  = b0_min + (b0_max - b0_min) * (j - 1) / (ny - 1)
     end
     apply_phase!(S0, B0, xs, ys; φ0=φ0, φx=φx, φy=φy, TE0=TE0)
     return S0, T2s, B0
@@ -101,7 +83,7 @@ end
 """
 Linear gradient phantom with complex S0 phase:
 """
-function linear_gradient_phantom(nx, ny, nz; Gx=50.0/(1000 * γ), Gy=-30.0/(1000 * γ), TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
+function linear_gradient_phantom(nx, ny, nz; Gx=500.0/(1000 * γ), Gy=-300.0/(1000 * γ), TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
     xs = LinRange(-1.0, 1.0, nx)
     ys = LinRange(-1.0, 1.0, ny)
     S0  = fill(1.0 + 0.0im, nx, ny, nz)
@@ -114,30 +96,32 @@ function linear_gradient_phantom(nx, ny, nz; Gx=50.0/(1000 * γ), Gy=-30.0/(1000
     return S0, T2s, B0
 end
 
-function smooth_random_phantom(nx, ny, nz; σ=nx/8, TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
+"""
+Linear gradient phantom of T2 left-right and B0 top-bottom:
+"""
+function linear_gradient_t2_b0(nx, ny, nz;
+                               t2_min::Float64=0.0, t2_max::Float64=100.0,
+                               b0_min::Float64=-550.0/(1000*γ), b0_max::Float64= 550.0/(1000*γ),
+                               TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
     xs = LinRange(-1.0, 1.0, nx)
     ys = LinRange(-1.0, 1.0, ny)
-    S0  = zeros(ComplexF64, nx, ny, nz)
-    T2s = zeros(Float64, nx, ny, nz)
-    B0  = zeros(Float64, nx, ny, nz)
-    for k in 1:nz
-        W1 = randn(nx, ny)
-        W2 = randn(nx, ny)
-        IW1 = imfilter(W1, Kernel.gaussian(σ))
-        IW2 = imfilter(W2, Kernel.gaussian(σ))
-        n1 = (IW1 .- minimum(IW1)) ./ (maximum(IW1)-minimum(IW1))
-        n2 = (IW2 .- minimum(IW2)) ./ (maximum(IW2)-minimum(IW2))
-        for j in 1:ny, i in 1:nx
-            amp    = 0.8 + 0.4*n1[i,j]
-            S0[i,j,k] = amp + 0.0im
-            T2s[i,j,k] = 30.0 + 50.0*n2[i,j]
-            B0[i,j,k]  = 5.0/(1000 * γ) * ((n1[i,j] + n2[i,j]) / 2)
-        end
+
+    # pre‐allocate
+    S0  = fill(1.0 + 0.0im, nx, ny, nz)
+    T2s = zeros(Float64,  nx, ny, nz)
+    B0  = zeros(Float64,  nx, ny, nz)
+
+    for k in 1:nz, j in 1:ny, i in 1:nx
+        # Top-bottom gradient for T2
+        T2s[i,j,k] = t2_min + (t2_max - t2_min) * (i - 1) / (nx - 1)
+
+        # Left-right gradient for B0
+        B0[i,j,k]  = b0_min + (b0_max - b0_min) * (j - 1) / (ny - 1)
     end
+
     apply_phase!(S0, B0, xs, ys; φ0=φ0, φx=φx, φy=φy, TE0=TE0)
     return S0, T2s, B0
 end
-
 
 #-----------------------------------------------------
 #Fatmod
@@ -145,24 +129,53 @@ end
 """
 Generate a circular phantom with complex S0 phase:
 """
-function circle_phantom_fatmod(nx, ny, nz; R=0.6, TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
+function circle_phantom_fatmod(nx, ny, nz;
+                              R=0.6,
+                              separation=0.4,
+                              TE0=0.0,
+                              φ0=0.0,
+                              φx=0.0,
+                              φy=0.0)
+
+    # sample grid in x/y
     xs = LinRange(-1.0, 1.0, nx)
     ys = LinRange(-1.0, 1.0, ny)
 
-    fat  = zeros(ComplexF64, nx, ny, nz)
-    water  = zeros(ComplexF64, nx, ny, nz)
+    # preallocate
+    fat   = zeros(ComplexF64, nx, ny, nz)
+    water = zeros(ComplexF64, nx, ny, nz)
+    T2s   = zeros(Float64,    nx, ny, nz)
+    B0    = zeros(Float64,    nx, ny, nz)
 
-    T2s = zeros(Float64, nx, ny, nz)
-    B0  = zeros(Float64, nx, ny, nz)
+    # circle centers
+    cx_fat,   cy_fat   = -separation/2, 0.0
+    cx_water, cy_water =  separation/2, 0.0
+
     for k in 1:nz, j in 1:ny, i in 1:nx
-        r = sqrt(xs[i]^2 + ys[j]^2)
-        if r <= R
-            fat[i,j,k] = 0.1 + 0im
-            water[i,j,k] = 0.8 + 0im
+        x, y = xs[i], ys[j]
+
+        # distance to each center
+        r_fat   = sqrt((x - cx_fat)^2   + (y - cy_fat)^2)
+        r_water = sqrt((x - cx_water)^2 + (y - cy_water)^2)
+
+        # set signals to 1 inside each disk
+        if r_fat <= R
+            fat[i,j,k] = 1.0 + 0im
+        end
+        if r_water <= R
+            water[i,j,k] = 1.0 + 0im
+        end
+
+        # assign T2* in union of disks
+        if r_fat <= R || r_water <= R
             T2s[i,j,k] = 50.0
         end
     end
-    apply_phase_fatmod!(fat,water, B0, xs, ys; φ0=φ0, φx=φx, φy=φy, TE0=TE0)
+
+    # apply your phase/fat-modulation step
+    apply_phase_fatmod!(fat, water, B0, xs, ys;
+                        φ0=φ0, φx=φx, φy=φy, TE0=TE0)
+
     return fat, water, T2s, B0
 end
 

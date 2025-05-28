@@ -2,8 +2,9 @@ using DqT2
 
 # Configure Settings
 combine_coils = true
-use_dcf = false
+use_dcf = true
 use_fat_modulation = false
+σ = 500.0
 
 gdmode = Adam() # Lbfgs()
 # gdmode = Lbfgs()
@@ -12,9 +13,9 @@ output_file = (gdmode isa Adam) ? "eval_results_adam.txt" : "eval_results_lbfgs.
 
 function evaluate(gt_t2, gt_s0, gt_b0, rc_t2, rc_s0, rc_b0)
 
-    l2_t2 = l2_norm(gt_t2 ./ 1000, rc_t2 ./ 1000)
-    l2_s0 = l2_norm(gt_s0, rc_s0)
-    l2_b0 = l2_norm(gt_b0, rc_b0)
+    l2_t2 = rmse(gt_t2, rc_t2)
+    l2_s0 = rmse(gt_s0, rc_s0)
+    l2_b0 = rmse(gt_b0, rc_b0)
     l2_total = l2_t2 + l2_s0 + l2_b0
 
     info="T2 Loss: $l2_t2 \n"
@@ -42,24 +43,25 @@ function evaluate(gt_t2, gt_s0, gt_b0, rc_t2, rc_s0, rc_b0)
     end
 end
 
-function l2_norm(gt, rc)
+function rmse(gt, rc)
     diff = gt .- rc
-    return sqrt(sum(abs2,diff))
+    N = length(diff)
+    return sqrt(sum(abs2, diff) / N)
 end
 
-timepoint_window_sizes = [536, 268, 134, 67, 30, 20]
+timepoint_window_sizes = [536, 268, 134, 67, 30]
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
-for eval_no in 1:5
+for eval_no in 1:4
 
-    info="\n \n Evaluation $eval_no:"
+    info="\n \n Evaluation $eval_no with σ=$(isnothing(σ) ? 0 : σ):"
     @info info
     open(output_file, "a") do f
         println(f, string(info))
     end
 
-    y_d, intermediate_t2, intermediate_s0, intermediate_b0 = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation)
+    y_d, intermediate_t2, intermediate_s0, intermediate_b0 = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation, σ)
 
     gt_t2 = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2")
     gt_s0 = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0")

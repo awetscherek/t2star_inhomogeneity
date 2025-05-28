@@ -1,11 +1,15 @@
-function synthetic_b0_prediction(x, eval_no, use_fatmod=false)
+function synthetic_b0_prediction(x, eval_no, use_fatmod=false; σ=nothing)
+
+    rounded = round(σ; digits=10)
+    safe_str = replace(string(rounded), "." => "_", "-" => "m")
+    σ_suffix = isnothing(σ) ? "" : "_$safe_str"
 
     fm = use_fatmod ? "_fatmod" : ""
 
-    if (isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0$(fm)_$eval_no.cfl")
-        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase$(fm)_$eval_no.cfl"))
-        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0$(fm)_$eval_no"),
-            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase$(fm)_$eval_no")
+    if (isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0$(fm)_$eval_no$σ_suffix.cfl")
+        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase$(fm)_$eval_no$σ_suffix.cfl"))
+        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0$(fm)_$eval_no$σ_suffix"),
+            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase$(fm)_$eval_no$σ_suffix")
     end
 
     @info "Generating B0 prediction"
@@ -61,8 +65,8 @@ function synthetic_b0_prediction(x, eval_no, use_fatmod=false)
     Δb0  = reshape(a ./ γ, nx, ny, nz)
     init_phase = reshape(b, nx, ny, nz)
 
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0$(fm)_$eval_no", ComplexF32.(Δb0))
-    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase$(fm)_$eval_no", ComplexF32.(init_phase))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0$(fm)_$eval_no$σ_suffix", ComplexF32.(Δb0))
+    ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/init_phase$(fm)_$eval_no$σ_suffix", ComplexF32.(init_phase))
 
     return Δb0, init_phase
 end

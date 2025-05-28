@@ -5,19 +5,20 @@ use_fat_modulation = false
 # Configure Settings
 combine_coils = true
 use_dcf = true
-eval_no = 5
+eval_no = 4
+σ = nothing
 
-gdmode = Adam()
+gdmode = Lbfgs()
 
 output_file = (gdmode isa Adam) ? "eval_results_adam.txt" : "eval_results_lbfgs.txt"
 
-@assert eval_no >= 1 && eval_no <= 5
+@assert eval_no >= 1 && eval_no <= 4
 
 function evaluate(gt_t2, gt_s0, gt_b0, rc_t2, rc_s0, rc_b0)
 
-    l2_t2 = l2_norm(gt_t2 ./ 1000, rc_t2 ./ 1000)
-    l2_s0 = l2_norm(gt_s0, rc_s0)
-    l2_b0 = l2_norm(gt_b0, rc_b0)
+    l2_t2 = rmse(gt_t2, rc_t2)
+    l2_s0 = rmse(gt_s0, rc_s0)
+    l2_b0 = rmse(gt_b0, rc_b0)
     l2_total = l2_t2 + l2_s0 + l2_b0
 
     info="T2 Loss: $l2_t2 \n"
@@ -45,9 +46,10 @@ function evaluate(gt_t2, gt_s0, gt_b0, rc_t2, rc_s0, rc_b0)
     end
 end
 
-function l2_norm(gt, rc)
+function rmse(gt, rc)
     diff = gt .- rc
-    return sqrt(sum(abs2,diff))
+    N = length(diff)
+    return sqrt(sum(abs2, diff) / N)
 end
 
 #Precision of approximation of timepoints
@@ -57,10 +59,10 @@ timepoint_window_size = 536
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
-y_d, intermediate_t2, intermediate_s0, intermediate_b0 = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation)
+y_d, intermediate_t2, intermediate_s0, intermediate_b0 = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation, σ)
 
 open(output_file, "a") do f
-    println(f, "\n \n Evaluation $eval_no:")
+    println(f, "\n \n Evaluation $eval_no with σ=$(isnothing(σ) ? 0 : σ):")
 end
 
 t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
@@ -71,7 +73,6 @@ t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
     fat_modulation=use_fat_modulation ? fat_modulation : nothing,
     [nx, ny],
     gdmode,
-    niter=15,
     combine_coils=combine_coils,
     timepoint_window_size=timepoint_window_size,
     sens=sens,
