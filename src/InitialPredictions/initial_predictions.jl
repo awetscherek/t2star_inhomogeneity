@@ -3,12 +3,12 @@ struct Synthetic <: Mode end
 struct Real      <: Mode end
 
 
-function initialise_params(::Synthetic, eval_no, e_d, s0_d)
-    initialise_synthetic_params(eval_no, e_d, s0_d)
+function initialise_params(::Synthetic, eval_no, e_d, s0_d, σ)
+    initialise_synthetic_params(eval_no, e_d, s0_d, σ)
 end
 
-function initialise_params(::Synthetic, eval_no, e_d, s0_fat, s0_water)
-    initialise_synthetic_params(eval_no, e_d, s0_fat, s0_water)
+function initialise_params(::Synthetic, eval_no, e_d, s0_fat, s0_water, σ)
+    initialise_synthetic_params(eval_no, e_d, s0_fat, s0_water, σ)
 end
 
 function initialise_params(::Real, e_d, s0_d)

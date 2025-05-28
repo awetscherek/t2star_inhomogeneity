@@ -5,14 +5,14 @@ use_fat_modulation = false
 # Configure Settings
 combine_coils = true
 use_dcf = true
-eval_no = 4
+eval_no = 5
 σ = nothing
 
-gdmode = Lbfgs()
+gdmode = Adam()
 
 output_file = (gdmode isa Adam) ? "eval_results_adam.txt" : "eval_results_lbfgs.txt"
 
-@assert eval_no >= 1 && eval_no <= 4
+@assert eval_no >= 1 && eval_no <= 5
 
 function evaluate(gt_t2, gt_s0, gt_b0, rc_t2, rc_s0, rc_b0)
 
@@ -65,7 +65,7 @@ open(output_file, "a") do f
     println(f, "\n \n Evaluation $eval_no with σ=$(isnothing(σ) ? 0 : σ):")
 end
 
-t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
+timed = @timed recon_2d_t2star_map(config,
     @view(kx[:, :, :, :]),
     @view(ky[:, :, :, :]),
     y_d,
@@ -78,14 +78,17 @@ t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
     sens=sens,
     use_dcf=use_dcf, # for some reason this seems to introduce artifacts into the image ...
     use_synthetic=true,
-    eval_no = eval_no
+    eval_no = eval_no,
+    σ=σ
 );
+
+t2, s0_fat, s0_water, Δb0 = timed.value
 
 gt_t2 = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2")
 gt_s0 = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0")
 gt_b0 = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_b0")
 
-info="DQT2: \n Timepoint Window Size: $timepoint_window_size \n"
+info="DQT2: \n Timepoint Window Size: $timepoint_window_size \n Runtime: $(timed.time) seconds \n"
 @info info
 open(output_file, "a") do f
     println(f, string(info))

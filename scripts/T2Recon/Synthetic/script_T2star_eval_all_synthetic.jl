@@ -4,7 +4,7 @@ using DqT2
 combine_coils = true
 use_dcf = true
 use_fat_modulation = false
-σ = 500.0
+σ = nothing
 
 gdmode = Adam() # Lbfgs()
 # gdmode = Lbfgs()
@@ -53,7 +53,7 @@ timepoint_window_sizes = [536, 268, 134, 67, 30]
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
-for eval_no in 1:4
+for eval_no in reverse(1:4)
 
     info="\n \n Evaluation $eval_no with σ=$(isnothing(σ) ? 0 : σ):"
     @info info
@@ -75,7 +75,7 @@ for eval_no in 1:4
     evaluate(gt_t2, gt_s0, gt_b0, intermediate_t2, intermediate_s0, intermediate_b0)
 
     for tws in timepoint_window_sizes
-        t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
+        timed = @timed recon_2d_t2star_map(config,
             @view(kx[:, :, :, :]),
             @view(ky[:, :, :, :]),
             y_d,
@@ -88,8 +88,11 @@ for eval_no in 1:4
             sens=sens,
             use_dcf=use_dcf, # for some reason this seems to introduce artifacts into the image ...
             use_synthetic=true,
-            eval_no = eval_no
+            eval_no = eval_no,
+            σ=σ
         );
+
+        t2, s0_fat, s0_water, Δb0 = timed.value
 
         comb = combine_coils ? "" : "_no_combine_coils"
         dcf = use_dcf ? "_dcf" : ""
@@ -105,7 +108,7 @@ for eval_no in 1:4
             ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/Results/$(eval_no)_s0_fat_$tws$comb$dcf$mode$fat_mod", ComplexF32.(s0_fat))
         end
 
-        info="DQT2: \n Timepoint Window Size: $tws \n"
+        info="DQT2: \n Timepoint Window Size: $tws \n Runtime: $(timed.time) seconds \n"
         @info info
         open(output_file, "a") do f
             println(f, string(info))

@@ -87,7 +87,7 @@ function linear_gradient_phantom(nx, ny, nz; Gx=500.0/(1000 * γ), Gy=-300.0/(10
     xs = LinRange(-1.0, 1.0, nx)
     ys = LinRange(-1.0, 1.0, ny)
     S0  = fill(1.0 + 0.0im, nx, ny, nz)
-    T2s = fill(60.0, nx, ny, nz)
+    T2s = fill(5.0, nx, ny, nz)
     B0  = zeros(Float64, nx, ny, nz)
     for k in 1:nz, j in 1:ny, i in 1:nx
         B0[i,j,k] = Gx*xs[i] + Gy*ys[j]
@@ -118,6 +118,23 @@ function linear_gradient_t2_b0(nx, ny, nz;
         # Left-right gradient for B0
         B0[i,j,k]  = b0_min + (b0_max - b0_min) * (j - 1) / (ny - 1)
     end
+
+    apply_phase!(S0, B0, xs, ys; φ0=φ0, φx=φx, φy=φy, TE0=TE0)
+    return S0, T2s, B0
+end
+
+"""
+Linear gradient phantom of T2 left-right and B0 top-bottom:
+"""
+function low_t2_high_b0(nx, ny, nz;
+                               TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
+    xs = LinRange(-1.0, 1.0, nx)
+    ys = LinRange(-1.0, 1.0, ny)
+
+    # pre‐allocate
+    S0  = fill(1.0 + 0.0im, nx, ny, nz)
+    T2s = fill(2,  nx, ny, nz)
+    B0  = fill(1000/(1000 * γ), nx, ny, nz)
 
     apply_phase!(S0, B0, xs, ys; φ0=φ0, φx=φx, φy=φy, TE0=TE0)
     return S0, T2s, B0

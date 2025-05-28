@@ -5,7 +5,7 @@ use_fat_modulation = true
 # Configure Settings
 combine_coils = true
 use_dcf = true
-eval_no = 2
+eval_no = 1
 
 gdmode = Adam()
 
@@ -96,7 +96,6 @@ t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
     fat_modulation=use_fat_modulation ? fat_modulation : nothing,
     [nx, ny],
     gdmode,
-    niter=15,
     combine_coils=combine_coils,
     timepoint_window_size=timepoint_window_size,
     sens=sens,

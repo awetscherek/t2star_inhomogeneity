@@ -117,8 +117,5 @@ function adjoint_operator_impl(plan1, r, e_d, s0_d, dcf_d, combine_coils, c_d, n
         g_s0_total = dropdims(sum(g_s0_total, dims=4), dims=4)
     end
 
-    info = "norm of g_e: $(norm(g_e_total)), norm of g_s0: $(norm(g_s0_total))"
-    @info info
-
     return g_e_total, g_s0_total
 end

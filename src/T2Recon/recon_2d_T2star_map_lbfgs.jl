@@ -7,7 +7,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Lbfgs; # k
     timepoint_window_size=536,  # number of samples within each timepoint approximation window
     fat_modulation=nothing,
     use_synthetic=false,
-    eval_no = 0) # consideration of fat and water
+    eval_no = 0,
+    σ=nothing) # consideration of fat and water
 
     (
         y_d,
@@ -44,9 +45,9 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Lbfgs; # k
 
     if use_synthetic
         if !isnothing(fat_modulation)
-            initialise_params(Synthetic(), eval_no, e_d, s0_fat_d, s0_water_d)
+            initialise_params(Synthetic(), eval_no, e_d, s0_fat_d, s0_water_d, σ)
         else
-            initialise_params(Synthetic(), eval_no, e_d, s0_d)
+            initialise_params(Synthetic(), eval_no, e_d, s0_d, σ)
         end
     else
         if !isnothing(fat_modulation)

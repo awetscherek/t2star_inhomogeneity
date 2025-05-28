@@ -1,8 +1,12 @@
 function synthetic_b0_prediction(x, eval_no, use_fatmod=false; σ=nothing)
 
-    rounded = round(σ; digits=10)
-    safe_str = replace(string(rounded), "." => "_", "-" => "m")
-    σ_suffix = isnothing(σ) ? "" : "_$safe_str"
+    if !isnothing(σ)
+        rounded = round(σ; digits=10)
+        safe_str = replace(string(rounded), "." => "_", "-" => "m")
+        σ_suffix = "_$safe_str"
+    else
+        σ_suffix = ""
+    end
 
     fm = use_fatmod ? "_fatmod" : ""
 

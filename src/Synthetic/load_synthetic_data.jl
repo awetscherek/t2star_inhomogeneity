@@ -53,7 +53,7 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
         kx,
         ky,
         timepoint_window_size,
-        use_dcf,
+        false,
         fat_modulation,
         true
         )
@@ -79,7 +79,7 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
     if (!isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix.cfl")
         || !isfile("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no$σ_suffix.cfl"))
 
-        @info "Raw data for Evaluation $eval_no fatmod not found for σ = $(isnothing(σ) ? 0 : σ) - Generating:"
+        @info "Raw data for Evaluation $eval_no not found for σ = $(isnothing(σ) ? 0 : σ) - Generating:"
 
         r2 = 1 ./ Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2"))
         s0 = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0"))
@@ -173,7 +173,7 @@ function load_synthetic_data_fatmod(eval_no, config, combine_coils, sens, kx, ky
     end
 
     #Raw data generated with NO approximation
-    timepoint_window_size = 536
+    timepoint_window_size = 1
 
     dims = [nx,ny]
     tol=1e-9

@@ -22,6 +22,10 @@ function gen_phantom_4(eval_no)
     _gen_phantom(SyntheticPhantoms.linear_gradient_t2_b0, eval_no)
 end
 
+function gen_phantom_5(eval_no)
+    _gen_phantom(SyntheticPhantoms.low_t2_high_b0, eval_no)
+end
+
 #Fatmod
 
 function _gen_phantom_fatmod(phantom_gen_func, eval_no)

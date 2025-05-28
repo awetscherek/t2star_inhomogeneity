@@ -21,7 +21,7 @@ tol=1e-9
 #Precision of approximation of timepoints
 # 1 - No approximation (NUFFT for every time point)
 # nkx (536) - Echo time of each assumed to be the timepoint
-timepoint_window_size = 268
+timepoint_window_size = 134
 
 (
     y_d,
