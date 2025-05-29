@@ -5,12 +5,12 @@ combine_coils = true
 use_dcf = true
 use_fat_modulation = true
 
-gdmode = Adam()
+gdmode = Lbfgs()
 
 #Precision of approximation of timepoints
 # 1 - No approximation (NUFFT for every time point)
 # nkx (536) - Echo time of each assumed to be the timepoint
-timepoint_window_size = 268
+timepoint_window_size = 536
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation)
 

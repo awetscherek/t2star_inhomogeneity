@@ -53,7 +53,8 @@ timepoint_window_sizes = [536, 268, 134, 67, 30]
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
-for eval_no in reverse(1:4)
+for eval_no in reverse(5:5)
+    local info, y_d, intermediate_t2, intermediate_s0, intermediate_b0, gt_t2, gt_s0, gt_b0
 
     info="\n \n Evaluation $eval_no with σ=$(isnothing(σ) ? 0 : σ):"
     @info info
@@ -75,6 +76,8 @@ for eval_no in reverse(1:4)
     evaluate(gt_t2, gt_s0, gt_b0, intermediate_t2, intermediate_s0, intermediate_b0)
 
     for tws in timepoint_window_sizes
+        local timed, t2, s0_fat, s0_water, Δb0, comb, dcf, fat_mod, water, mode
+
         timed = @timed recon_2d_t2star_map(config,
             @view(kx[:, :, :, :]),
             @view(ky[:, :, :, :]),

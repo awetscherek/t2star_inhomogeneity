@@ -134,7 +134,7 @@ function low_t2_high_b0(nx, ny, nz;
     # pre‐allocate
     S0  = fill(1.0 + 0.0im, nx, ny, nz)
     T2s = fill(2,  nx, ny, nz)
-    B0  = fill(1000/(1000 * γ), nx, ny, nz)
+    B0  = fill(500/(1000 * γ), nx, ny, nz)
 
     apply_phase!(S0, B0, xs, ys; φ0=φ0, φx=φx, φy=φy, TE0=TE0)
     return S0, T2s, B0

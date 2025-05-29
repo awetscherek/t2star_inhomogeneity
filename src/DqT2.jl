@@ -54,6 +54,7 @@ export load_synthetic_data, load_synthetic_data_fatmod
 include("T2Recon.jl")
 
 export recon_2d_t2star_map
+export apply_forward_op
 export GDMode, Adam, Lbfgs
 
 end

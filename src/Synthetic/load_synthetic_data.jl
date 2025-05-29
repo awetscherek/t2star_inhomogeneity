@@ -15,31 +15,15 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
     else
         σ_suffix = ""
     end
-    
-    
-    if (isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix.cfl")
-        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no.cfl")
-        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/s0_$eval_no.cfl")
-        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no.cfl"))
-        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix"),
-            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no"),
-            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/s0_$eval_no"),
-            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no")
-    end
 
     #Raw data generated with NO approximation
     timepoint_window_size = 1
-
-    dims = [nx,ny]
-    tol=1e-9 #maybe change
-
-    plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)
 
     (
         _,
         kx_d,
         ky_d,
-        _,
+        dcf_d,
         c_d,
         selection,
         num_timepoints,
@@ -53,10 +37,27 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
         kx,
         ky,
         timepoint_window_size,
-        false,
+        use_dcf,
         fat_modulation,
         true
         )
+    
+    
+    if (isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix.cfl")
+        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no$σ_suffix.cfl")
+        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no.cfl")
+        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/s0_$eval_no.cfl")
+        && isfile("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no.cfl"))
+        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix") .* dcf_d,
+            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/t2_$eval_no"),
+            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/IntermediateImage/s0_$eval_no"),
+            ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/b0_$eval_no")
+    end
+
+    dims = [nx,ny]
+    tol=1e-9
+
+    plan2 = finufft_makeplan(2, dims, 1, nz * config["nchan"], tol)
 
     function synth_recon_forward_operator(e,s0)
         return forward_operator_impl(plan2, e, nothing, s0, num_timepoints, num_total_timepoints, kx_d, ky_d, c_d, timepoints, selection,
@@ -104,6 +105,8 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
                 # ReadWriteCFL.writecfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix", ComplexF32.(y_d))
             end
         end
+
+        y_d .*= dcf_d
         
         y = split_ksp_by_echo(y_d)
 
@@ -111,22 +114,25 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
             c_d = calculate_synthetic_coil_sensitivity(config)
         end
 
-
-        @info "Generating Image Reconstruction of Synthetic Raw Data"
-        #Reconstructing Synthetic data for Intermediate Image Initial Prediction
-        for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
-            xe .= image_recon_synthetic_2d(config, 
-            @view(kx[:, ie, :, :]),
-            @view(ky[:, ie, :, :]),
-            y[ie],
-            combine_coils = combine_coils,
-            sens = c_d,
-            use_dcf = use_dcf,
-            )
+        if isfile("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no$σ_suffix.cfl")
+            x .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no$σ_suffix")
+        else
+            @info "Generating Image Reconstruction of Synthetic Raw Data"
+            #Reconstructing Synthetic data for Intermediate Image Initial Prediction
+            for (ie, xe) in zip(1:config["necho"], eachslice(x, dims=length(size(x))))
+                xe .= image_recon_synthetic_2d(config, 
+                @view(kx[:, ie, :, :]),
+                @view(ky[:, ie, :, :]),
+                y[ie],
+                combine_coils = combine_coils,
+                sens = c_d,
+                use_dcf = use_dcf,
+                )
+            end
+            ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no$σ_suffix", ComplexF32.(x))
         end
-        ReadWriteCFL.writecfl("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no$σ_suffix", ComplexF32.(x)) 
     else
-        y_d = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix")
+        y_d = ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix") .* dcf_d
         x .= ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/ImageRecon/synth_recon_$eval_no$σ_suffix")
     end
 

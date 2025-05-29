@@ -38,11 +38,7 @@ function preprocess_data(config, raw, combine_coils, sens, kx, ky, timepoint_win
     dcf_d = use_dcf ? reshape(repeat(sqrt.(dcf), outer=(size(ky, 2), size(ky, 3))),nky,:)[selection] : 1.0
 
     if use_synthetic
-        if !isnothing(raw)
-            y_d = raw .* dcf_d #generated y_d data passed in
-        else
-            y_d = nothing
-        end
+        y_d = raw #generated y_d data passed in (multiplied by dcf as required in load_synthetic_data)
     else
         y_d = reshape(ComplexF64.(permutedims(raw, [5 1 3 4 2])) .* dcf_y, nky, :, nz * config["nchan"])[selection, :]
     end
