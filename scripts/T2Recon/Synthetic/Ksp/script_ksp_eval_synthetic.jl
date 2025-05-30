@@ -34,7 +34,7 @@ end
 #Precision of approximation of timepoints
 # 1 - No approximation (NUFFT for every time point)
 # nkx (536) - Echo time of each assumed to be the timepoint
-timepoint_window_size = 536
+timepoint_window_size = 536 ÷ 41
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
@@ -80,4 +80,4 @@ open(output_file, "a") do f
     println(f, string(info))
 end
 
-evaluate(y_d, rc_ksp, dcf_d)
+evaluate(y_d, rc_ksp)

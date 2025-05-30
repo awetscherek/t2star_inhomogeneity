@@ -49,7 +49,7 @@ function rmse(gt, rc)
     return sqrt(sum(abs2, diff) / N)
 end
 
-timepoint_window_sizes = [536, 268, 134, 67, 30]
+timepoint_window_sizes = [536, 536 ÷ 3, 536 ÷ 5, 536 ÷ 7, 536 ÷ 9]
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
