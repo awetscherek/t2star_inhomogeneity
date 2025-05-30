@@ -5,7 +5,9 @@ use_fat_modulation = false
 # Configure Settings
 combine_coils = true
 #whether the gt and reconstructed kspace are multiplied by dcf
-use_dcf = true
+use_dcf = false
+
+dcf_weighted = false
 eval_no = 5
 
 gdmode = Adam()
@@ -20,9 +22,19 @@ function rmse(gt, rc)
     return sqrt(sum(abs2, diff) / N)
 end
 
-function evaluate(gt_ksp, rc_ksp)
+function wrmse(gt, rc, dcf)
+    diff = gt .- rc
+    mse_w = sum(abs2.(diff) .* dcf) / sum(dcf)
+    return sqrt(mse_w)
+end
 
-    rmse_loss = rmse(gt_ksp, rc_ksp)
+function evaluate(gt_ksp, rc_ksp, dcf)
+
+    if dcf_weighted
+        rmse_loss = wrmse(gt_ksp, rc_ksp,dcf)
+    else
+        rmse_loss = rmse(gt_ksp, rc_ksp)
+    end
 
     info="KSP RMSE: $rmse_loss \n"
     @info info
@@ -34,15 +46,17 @@ end
 #Precision of approximation of timepoints
 # 1 - No approximation (NUFFT for every time point)
 # nkx (536) - Echo time of each assumed to be the timepoint
-timepoint_window_size = 536 ÷ 41
+timepoint_window_size = 536
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
 #Take σ to be nothing
 y_d = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, false, timepoints, fat_modulation, nothing, only_ksp=true)
 
+info = "\n \n KSPACE Evaluation $eval_no, dcf-weighted: $dcf_weighted:"
+@info info
 open(output_file, "a") do f
-    println(f, "\n \n KSPACE Evaluation $eval_no")
+    println(f, string(info))
 end
 
 fm = use_fat_modulation ? "_fatmod" : ""
@@ -72,7 +86,7 @@ timed = @timed apply_forward_op(gt_t2, gt_b0, gt_water, gt_fat,
     use_dcf=use_dcf,
 );
 
-rc_ksp = timed.value
+rc_ksp, dcf = timed.value
 
 info="DQT2: \n Timepoint Window Size: $timepoint_window_size \n Runtime: $(timed.time) seconds \n"
 @info info
@@ -80,4 +94,4 @@ open(output_file, "a") do f
     println(f, string(info))
 end
 
-evaluate(y_d, rc_ksp)
+evaluate(y_d, rc_ksp,dcf)

@@ -49,11 +49,13 @@ function rmse(gt, rc)
     return sqrt(sum(abs2, diff) / N)
 end
 
-timepoint_window_sizes = [536, 536 ÷ 3, 536 ÷ 5, 536 ÷ 7, 536 ÷ 9]
+timepoint_window_sizes = [536, 536 ÷ 3, 536 ÷ 5, 536 ÷ 7, 536 ÷ 9, 536 ÷ 41]
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
-for eval_no in reverse(5:5)
+evals = [5,4,2]
+
+for eval_no in evals
     local info, y_d, intermediate_t2, intermediate_s0, intermediate_b0, gt_t2, gt_s0, gt_b0
 
     info="\n \n Evaluation $eval_no with σ=$(isnothing(σ) ? 0 : σ):"

@@ -3,7 +3,10 @@ using DqT2
 # Configure Settings
 combine_coils = true
 #whether the gt and reconstructed kspace are multiplied by dcf
-use_dcf = false
+use_dcf = true
+
+dcf_weighted = true
+
 use_fat_modulation = false
 
 gdmode = Adam() # Lbfgs()
@@ -17,9 +20,19 @@ function rmse(gt, rc)
     return sqrt(sum(abs2, diff) / N)
 end
 
-function evaluate(gt_ksp, rc_ksp)
+function wrmse(gt, rc, dcf)
+    diff = gt .- rc
+    mse_w = sum(abs2.(diff) .* dcf) / sum(dcf)
+    return sqrt(mse_w)
+end
 
-    rmse_loss = rmse(gt_ksp, rc_ksp)
+function evaluate(gt_ksp, rc_ksp, dcf)
+
+    if dcf_weighted
+        rmse_loss = wrmse(gt_ksp, rc_ksp,dcf)
+    else
+        rmse_loss = rmse(gt_ksp, rc_ksp)
+    end
 
     info="KSP RMSE: $rmse_loss \n"
     @info info
@@ -28,14 +41,17 @@ function evaluate(gt_ksp, rc_ksp)
     end
 end
 
-timepoint_window_sizes = [536, 536 ÷ 3, 536 ÷ 5, 536 ÷ 7, 536 ÷ 9, 536 ÷ 11 , 536 ÷ 41, 1]
+timepoint_window_sizes = [536, 536 ÷ 3, 536 ÷ 5, 536 ÷ 7, 536 ÷ 9, 536 ÷ 11 , 536 ÷ 41, 3]
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
-for eval_no in reverse(5:5)
+# evals = [5,4,3,2]
+evals = [5]
+
+for eval_no in evals
     local info, y_d, fm, fat, water, gt_t2, gt_fat, gt_water, gt_b0
 
-    info="\n \n KSPACE Evaluation $eval_no"
+    info="\n \n KSPACE Evaluation $eval_no, dcf-weighted: $dcf_weighted:"
     @info info
     open(output_file, "a") do f
         println(f, string(info))
@@ -74,7 +90,7 @@ for eval_no in reverse(5:5)
             use_dcf=use_dcf,
         );
 
-        rc_ksp = timed.value
+        rc_ksp, dcf = timed.value
 
         info="DQT2: \n Timepoint Window Size: $tws \n Runtime: $(timed.time) seconds \n"
         @info info
@@ -82,6 +98,6 @@ for eval_no in reverse(5:5)
             println(f, string(info))
         end
 
-        evaluate(y_d, rc_ksp)
+        evaluate(y_d, rc_ksp, dcf)
     end
 end
