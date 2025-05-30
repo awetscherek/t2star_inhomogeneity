@@ -3,7 +3,7 @@ by Dominic Qu
 
 This package includes forward and jacobian operators for direct reconstruction of T2* in K-space, as well as an iterative algorithm utilising the operators.
 
-The operators take fat modulation and \Delta \omega into account.
+The operators take fat modulation and off-resonance from magnetic field inhomogeneity into account.
 
 ## Related research
 
