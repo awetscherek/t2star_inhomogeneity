@@ -3,7 +3,7 @@ by Dominic Qu
 
 This package includes forward and jacobian operators for direct reconstruction of T2* in K-space, as well as an iterative algorithm utilising the operators.
 
-The operators take fat modulation and \Delta \omega into account.
+The operators take fat modulation and off-resonance from magnetic field inhomogeneity into account.
 
 ## Related research
 
@@ -43,17 +43,28 @@ If you have access to an NVIDIA GPU with > 16GB, you could try out the cuda scri
 
 The best viewer that I've come across for complex-valued multi-dimensional data is the MATLAB tool arrShow (https://github.com/tsumpf/arrShow, command `as`). BART contains readcfl.m and writecfl.m to load .cfl data into MATLAB and display it.
 
-## Demos
+## Result Scripts
 
 ### Real Data
 
-`demos/T2Recon/RealData/script_T2star_2d_mapping.jl` - Reconstructs real data 
+Real data can be run to generate T2*, S0 mappings
+
+`scripts/T2Recon/RealData/script_T2star_2d_mapping.jl` - Reconstructs real data 
 
 ### Synthetic Data
 
-#### Evaluation of Forward Operator
-`demos/Synthetic/ForwardOp/script_forward_op.jl` - Reconstructs k-space from generated T2* and S0* data 
+#### Evaluation of k-Space
 
-#### Evaluation of Reconstruction Algorithm
-`demos/Synthetic/T2Recon/script_t2_recon.jl` - Iteratively reconstructs T2*, B0 and S0 mappings based on synthetic raw data.
-Tests are done, varying the noise and the initial prediction of this.
+##### Test single Evaluation Experiment
+`scripts/T2Recon/Synthetic/Ksp/script_ksp_eval_all_synthetic.jl`
+
+##### Test All Evaluation Experiment across different window sizes
+`scripts/T2Recon/Synthetic/Ksp/script_ksp_eval_synthetic.jl`
+
+#### Evaluation of T2* Reconstructions
+
+##### Test single Evaluation Experiment
+`scripts/T2Recon/Synthetic/Iterative/script_T2star_eval_all_synthetic.jl`
+
+##### Test All Evaluation Experiment across different window sizes
+`scripts/T2Recon/Synthetic/Iterative/script_T2star_eval_synthetic.jl`
