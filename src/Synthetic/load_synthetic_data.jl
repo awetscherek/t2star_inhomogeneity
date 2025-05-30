@@ -1,4 +1,4 @@
-function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation, σ=nothing)
+function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation, σ=nothing; only_ksp = false)
 
     if (!isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_t2.cfl")
         || !isfile("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0.cfl")
@@ -41,6 +41,10 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
         fat_modulation,
         true
         )
+
+    if (only_ksp && isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix.cfl"))
+        return ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix") .* dcf_d
+    end
     
     
     if (isfile("/mnt/f/Dominic/Data/Synthetic/2d/RawData/y_d_$eval_no$σ_suffix.cfl")
@@ -107,6 +111,10 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
         end
 
         y_d .*= dcf_d
+
+        if only_ksp
+            return y_d
+        end
         
         y = split_ksp_by_echo(y_d)
 

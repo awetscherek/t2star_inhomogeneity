@@ -89,7 +89,7 @@ for eval_no in reverse(5:5)
             combine_coils=combine_coils,
             timepoint_window_size=tws,
             sens=sens,
-            use_dcf=use_dcf, # for some reason this seems to introduce artifacts into the image ...
+            use_dcf=use_dcf,
             use_synthetic=true,
             eval_no = eval_no,
             σ=σ

@@ -6,7 +6,7 @@ use_fat_modulation = false
 combine_coils = true
 #whether the gt and reconstructed kspace are multiplied by dcf
 use_dcf = true
-eval_no = 2
+eval_no = 5
 
 gdmode = Adam()
 
@@ -39,10 +39,10 @@ timepoint_window_size = 536
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
 #Take σ to be nothing
-y_d, intermediate_t2, intermediate_s0, intermediate_b0 = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation, nothing)
+y_d = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, false, timepoints, fat_modulation, nothing, only_ksp=true)
 
 open(output_file, "a") do f
-    println(f, "\n \n KSPACE Evaluation $eval_no with σ=$(isnothing(σ) ? 0 : σ):")
+    println(f, "\n \n KSPACE Evaluation $eval_no")
 end
 
 fm = use_fat_modulation ? "_fatmod" : ""
@@ -69,9 +69,8 @@ timed = @timed apply_forward_op(gt_t2, gt_b0, gt_water, gt_fat,
     combine_coils=combine_coils,
     timepoint_window_size=timepoint_window_size,
     sens=sens,
-    use_dcf=use_dcf, # for some reason this seems to introduce artifacts into the image ...
+    use_dcf=use_dcf,
 );
-
 
 rc_ksp = timed.value
 
@@ -81,4 +80,4 @@ open(output_file, "a") do f
     println(f, string(info))
 end
 
-evaluate(y_d, rc_ksp)
+evaluate(y_d, rc_ksp, dcf_d)

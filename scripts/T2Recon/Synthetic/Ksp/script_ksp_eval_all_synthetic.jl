@@ -28,21 +28,21 @@ function evaluate(gt_ksp, rc_ksp)
     end
 end
 
-timepoint_window_sizes = [536, 268, 134, 67, 30, 20,1]
+timepoint_window_sizes = [536, 536 ÷ 3, 536 ÷ 5, 536 ÷ 7, 536 ÷ 9, 536 ÷ 11 , 1]
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
 for eval_no in reverse(5:5)
-    local info, y_d, intermediate_t2, intermediate_s0, intermediate_b0, gt_t2, gt_s0, gt_b0
+    local info, y_d, fm, fat, water, gt_t2, gt_fat, gt_water, gt_b0
 
-    info="\n \n KSPACE Evaluation $eval_no with σ=$(isnothing(σ) ? 0 : σ):"
+    info="\n \n KSPACE Evaluation $eval_no"
     @info info
     open(output_file, "a") do f
         println(f, string(info))
     end
 
     #No gaussian noise
-    y_d, intermediate_t2, intermediate_s0, intermediate_b0 = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation, nothing)
+    y_d = load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_dcf, timepoints, fat_modulation, nothing, only_ksp=true)
 
     fm = use_fat_modulation ? "_fatmod" : ""
     fat = use_fat_modulation ? "_fat" : ""
@@ -59,7 +59,7 @@ for eval_no in reverse(5:5)
     end
 
     for tws in timepoint_window_sizes
-        local timed, t2, s0_fat, s0_water, Δb0, comb, dcf, fat_mod, water, mode
+        local timed, rc_ksp
 
         timed = @timed apply_forward_op(gt_t2, gt_b0, gt_water, gt_fat,
             config,
@@ -71,7 +71,7 @@ for eval_no in reverse(5:5)
             combine_coils=combine_coils,
             timepoint_window_size=tws,
             sens=sens,
-            use_dcf=use_dcf, # for some reason this seems to introduce artifacts into the image ...
+            use_dcf=use_dcf,
         );
 
         rc_ksp = timed.value

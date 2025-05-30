@@ -99,7 +99,7 @@ t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
     combine_coils=combine_coils,
     timepoint_window_size=timepoint_window_size,
     sens=sens,
-    use_dcf=use_dcf, # for some reason this seems to introduce artifacts into the image ...
+    use_dcf=use_dcf,
     use_synthetic=true,
     eval_no = eval_no
 );
