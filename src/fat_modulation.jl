@@ -14,7 +14,7 @@ function calculate_fat_modulation(timepoints)
         t_echo = @view timepoints[:,ie,1,1]
 
         @inbounds for (amp, freq) in zip(relative_amplitudes, frequency_offsets)
-            fat_modulation[:, ie] .+= amp .* exp.(im .* γ .* freq .* t_echo .* 1.5e-6)
+            fat_modulation[:, ie] .+= amp .* exp.(im .* γ .* freq .* t_echo .* 1.5e-9)
         end
     end
     
