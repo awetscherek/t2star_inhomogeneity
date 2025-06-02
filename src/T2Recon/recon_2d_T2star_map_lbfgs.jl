@@ -81,6 +81,14 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Lbfgs; # k
         return reshape(X[1:N], size(e_d)), reshape(X[N+1:2*N], size(s0_fat_d)), reshape(X[2*N+1:end], size(s0_water_d))
     end
 
+    function compute_regularization(param1, b0)
+        regularization_weight=1e-6
+        # L2 regularization on parameters
+        reg_param1 = sum(abs2, param1)
+        reg_b0 = sum(abs2, b0)
+        return regularization_weight * (reg_param1 + reg_b0)
+    end
+
     # Initialise Operators with implicit values
     function forward_operator_fatmod(x)
         e, fat,water = unflatten_fatmod(x)
@@ -99,7 +107,9 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Lbfgs; # k
         timepoint_window_size, fat_modulation)
         r .*= dcf_d
         r .-= y_d
-        obj = 1/2 * sum(abs2, r)
+        data_fidelity = 0.5 * sum(abs2, r)
+        regularization = compute_regularization(real(e), imag(e_d) ./ (-γ))
+        obj = data_fidelity + regularization
         @info "obj = $obj"
         return obj
     end

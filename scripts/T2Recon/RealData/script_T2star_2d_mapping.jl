@@ -3,9 +3,9 @@ using DqT2
 # Configure Settings
 combine_coils = true
 use_dcf = true
-use_fat_modulation = true
+use_fat_modulation = false
 
-gdmode = Adam()
+gdmode = Lbfgs()
 
 #Precision of approximation of timepoints
 # 1 - No approximation (NUFFT for every time point)
@@ -22,6 +22,7 @@ t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
     fat_modulation=use_fat_modulation ? fat_modulation : nothing,
     [nx, ny],
     gdmode,
+    niter=3,
     combine_coils=combine_coils,
     timepoint_window_size=timepoint_window_size,
     sens=combine_coils ? sens : nothing,

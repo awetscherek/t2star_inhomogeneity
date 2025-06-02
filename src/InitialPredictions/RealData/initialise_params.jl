@@ -15,13 +15,13 @@ function initialise_real_params(e_d, s0_d)
     e_d .= complex.(r2_d, im)
 
     # s0_d .= 0.0;
-    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x_dcf")[:, :, :, 1])
+    # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x_dcf")[:, :, :, 1])
     
-    # if !isfile("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf.cfl")
-    #     @info "No S0 prediction detected - Generating prediction"    
-    #     real_s0_prediction()
-    # end
-    # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf"));
+    if !isfile("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf.cfl")
+        @info "No S0 prediction detected - Generating prediction"    
+        real_s0_prediction()
+    end
+    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf"));
 end
 
 function initialise_real_params(e_d, s0_fat, s0_water)

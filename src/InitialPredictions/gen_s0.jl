@@ -110,6 +110,8 @@ function fit_monoexponential(xdata, ydata)
     else
         b = -1.0 / neg_inv_b
     end
+
+    b = min(b, 100)
     
     return b, a  # Return T2* and |S₀|
 end

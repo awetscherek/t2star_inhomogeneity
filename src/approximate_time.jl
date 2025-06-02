@@ -9,7 +9,7 @@ function approximate_time(timepoints, t_start, t_end, method::Symbol = :nearest_
 end
 
 function nearest_neighbour(timepoints, t_start, t_end)
-    t_index = round(Int, (t_start + t_end) / 2)
+    t_index = (t_start + t_end) ÷ 2
 
     te_index = contains_te(t_start,t_end)
     if !isnothing(te_index)
