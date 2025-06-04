@@ -54,8 +54,8 @@ end
 
 function evaluate_intermediate(gt_t2, gt_b0, rc_t2, rc_b0)
         
-    l2_t2 = l2_norm(gt_t2 ./ 1000, rc_t2 ./ 1000)
-    l2_b0 = l2_norm(gt_b0, rc_b0)
+    l2_t2 = rmse(gt_t2 , rc_t2)
+    l2_b0 = rmse(gt_b0, rc_b0)
 
     info="T2 Loss: $l2_t2 \n"
     @info info
@@ -70,9 +70,10 @@ function evaluate_intermediate(gt_t2, gt_b0, rc_t2, rc_b0)
     end
 end
 
-function l2_norm(gt, rc)
+function rmse(gt, rc)
     diff = gt .- rc
-    return sqrt(sum(abs2,diff))
+    N = length(diff)
+    return sqrt(sum(abs2, diff) / N)
 end
 
 #Precision of approximation of timepoints
