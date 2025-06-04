@@ -81,14 +81,6 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Lbfgs; # k
         return reshape(X[1:N], size(e_d)), reshape(X[N+1:2*N], size(s0_fat_d)), reshape(X[2*N+1:end], size(s0_water_d))
     end
 
-    function compute_regularization(param1, b0)
-        regularization_weight=1e-6
-        # L2 regularization on parameters
-        reg_param1 = sum(abs2, param1)
-        reg_b0 = sum(abs2, b0)
-        return regularization_weight * (reg_param1 + reg_b0)
-    end
-
     # Initialise Operators with implicit values
     function forward_operator_fatmod(x)
         e, fat,water = unflatten_fatmod(x)
@@ -107,9 +99,7 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Lbfgs; # k
         timepoint_window_size, fat_modulation)
         r .*= dcf_d
         r .-= y_d
-        data_fidelity = 0.5 * sum(abs2, r)
-        regularization = compute_regularization(real(e), imag(e_d) ./ (-γ))
-        obj = data_fidelity + regularization
+        obj = 0.5 * sum(abs2, r)
         @info "obj = $obj"
         return obj
     end
@@ -178,8 +168,18 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Lbfgs; # k
 
     # collect results from GPU & return:
     if !isnothing(fat_modulation) 
-        1 ./ real(e_d), s0_fat_d, s0_water_d, b0
+        r2 = real(e_d)
+        mask = (r2 .> 0.0) .& isfinite.(r2)
+
+        t2 = zeros(size(e_d))
+        t2[mask] .= 1.0 ./ r2[mask] 
+        t2, s0_fat_d, s0_water_d, b0
     else
-        1 ./ real(e_d), nothing, s0_d, b0
+        r2 = real(e_d)
+        mask = (r2 .> 0.0) .& isfinite.(r2)
+
+        t2 = zeros(size(e_d))
+        t2[mask] .= 1.0 ./ r2[mask] 
+        t2, nothing, s0_d, b0
     end
 end

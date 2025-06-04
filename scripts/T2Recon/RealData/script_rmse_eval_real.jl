@@ -9,7 +9,6 @@ end
 gt = Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Intermediate/2d/t2_dcf"))
 rc = Float64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/T2/2d/t2_536_dcf_adam"))
 
-rc[rc .== 50.0] .= 0.0
 
 loss = rmse(gt,rc)
 

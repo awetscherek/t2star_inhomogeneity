@@ -105,7 +105,8 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Adam; # ke
     else
         model = (S0 = s0_d, e = e_d)
     end
-    state = Optimisers.setup(Optimisers.Adam(), model)
+    eta = 1e-4
+    state = Optimisers.setup(Optimisers.Adam(eta = eta), model)
 
     for it = 1:niter
         if !isnothing(fat_modulation)
@@ -153,9 +154,19 @@ function recon_2d_t2star_map(config, kx, ky, raw, timepoints, dims, ::Adam; # ke
     b0 = imag(e_d) ./ (-γ)
 
     # collect results from GPU & return:
-    if !isnothing(fat_modulation) 
-        1 ./ real(e_d), s0_fat_d, s0_water_d, b0
+    if !isnothing(fat_modulation)
+        r2 = real(e_d)
+        mask = (r2 .> 0.0) .& isfinite.(r2)
+
+        t2 = zeros(size(e_d))
+        t2[mask] .= 1.0 ./ r2[mask] 
+        t2, s0_fat_d, s0_water_d, b0
     else
-        1 ./ real(e_d), nothing, s0_d, b0
+        r2 = real(e_d)
+        mask = (r2 .> 0.0) .& isfinite.(r2)
+
+        t2 = zeros(size(e_d))
+        t2[mask] .= 1.0 ./ r2[mask]
+        t2, nothing, s0_d, b0
     end
 end

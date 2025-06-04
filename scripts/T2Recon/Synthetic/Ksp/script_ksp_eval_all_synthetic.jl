@@ -41,13 +41,14 @@ function evaluate(gt_ksp, rc_ksp, dcf)
     end
 end
 
-timepoint_window_sizes = [536, 536 ÷ 3, 536 ÷ 5, 536 ÷ 7, 536 ÷ 9, 536 ÷ 51, 3]
+timepoint_window_sizes = [536, 536 ÷ 3, 536 ÷ 5, 536 ÷ 7, 536 ÷ 9, 536 ÷ 41, 3]
 # timepoint_window_sizes = [536, cld(536,3), cld(536, 5), cld(536,7), cld(536, 9), cld(536, 51), 3]
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation, true)
 
 # evals = [5,4,3,2]
-evals = [2,3,4,5]
+# evals = [2,3,5]
+evals=[3]
 
 for eval_no in evals
     local info, y_d, fm, fat, water, gt_t2, gt_fat, gt_water, gt_b0

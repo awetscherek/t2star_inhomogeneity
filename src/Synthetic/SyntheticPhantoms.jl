@@ -72,9 +72,6 @@ function checkerboard_phantom(nx, ny, nz; nblocks=8, b0_min::Float64=-550.0/(100
         bi = floor(Int, xs[i]*nblocks)
         bj = floor(Int, ys[j]*nblocks)
         T2s[i,j,k] = (isodd(bi + bj) ? 30.0 : 80.0)
-
-        # Left-right gradient for B0
-        B0[i,j,k]  = b0_min + (b0_max - b0_min) * (j - 1) / (ny - 1)
     end
     apply_phase!(S0, B0, xs, ys; φ0=φ0, φx=φx, φy=φy, TE0=TE0)
     return S0, T2s, B0
@@ -83,14 +80,14 @@ end
 """
 Linear gradient phantom with complex S0 phase:
 """
-function linear_gradient_phantom(nx, ny, nz; Gx=500.0/(1000 * γ), Gy=-300.0/(1000 * γ), TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
+function linear_gradient_phantom(nx, ny, nz; b0_min::Float64=-500.0/(1000*γ), b0_max::Float64= 500.0/(1000*γ), TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
     xs = LinRange(-1.0, 1.0, nx)
     ys = LinRange(-1.0, 1.0, ny)
     S0  = fill(1.0 + 0.0im, nx, ny, nz)
-    T2s = fill(5.0, nx, ny, nz)
+    T2s = fill(30.0, nx, ny, nz)
     B0  = zeros(Float64, nx, ny, nz)
     for k in 1:nz, j in 1:ny, i in 1:nx
-        B0[i,j,k] = Gx*xs[i] + Gy*ys[j]
+        B0[i,j,k]  = b0_min + (b0_max - b0_min) * (j - 1) / (ny - 1)
     end
     apply_phase!(S0, B0, xs, ys; φ0=φ0, φx=φx, φy=φy, TE0=TE0)
     return S0, T2s, B0
@@ -101,7 +98,7 @@ Linear gradient phantom of T2 left-right and B0 top-bottom:
 """
 function linear_gradient_t2_b0(nx, ny, nz;
                                t2_min::Float64=0.0, t2_max::Float64=100.0,
-                               b0_min::Float64=-550.0/(1000*γ), b0_max::Float64= 550.0/(1000*γ),
+                               b0_min::Float64=-500.0/(1000*γ), b0_max::Float64= 500.0/(1000*γ),
                                TE0=0.0, φ0=0.0, φx=0.0, φy=0.0)
     xs = LinRange(-1.0, 1.0, nx)
     ys = LinRange(-1.0, 1.0, ny)
