@@ -7,7 +7,7 @@ combine_coils = true
 use_dcf = true
 eval_no = 1
 
-gdmode = Adam()
+gdmode = Lbfgs()
 
 output_file = (gdmode isa Adam) ? "eval_results_fatmod_adam.txt" : "eval_results_fatmod_lbfgs.txt"
 
@@ -15,10 +15,10 @@ output_file = (gdmode isa Adam) ? "eval_results_fatmod_adam.txt" : "eval_results
 
 function evaluate_dqt2(gt_t2, gt_fat, gt_water, gt_b0, rc_t2, rc_fat, rc_water, rc_b0)
         
-    l2_t2 = l2_norm(gt_t2 ./ 1000, rc_t2 ./ 1000)
-    l2_fat = l2_norm(gt_fat, rc_fat)
-    l2_water = l2_norm(gt_water, rc_water)
-    l2_b0 = l2_norm(gt_b0, rc_b0)
+    l2_t2 = rmse(gt_t2, rc_t2)
+    l2_fat = rmse(gt_fat, rc_fat)
+    l2_water = rmse(gt_water, rc_water)
+    l2_b0 = rmse(gt_b0, rc_b0)
     l2_total = l2_t2 + l2_fat + l2_water + l2_b0
 
     info="T2 Loss: $l2_t2 \n"
@@ -97,6 +97,7 @@ t2, s0_fat, s0_water, Δb0 = recon_2d_t2star_map(config,
     fat_modulation=use_fat_modulation ? fat_modulation : nothing,
     [nx, ny],
     gdmode,
+    niter=5,
     combine_coils=combine_coils,
     timepoint_window_size=timepoint_window_size,
     sens=sens,

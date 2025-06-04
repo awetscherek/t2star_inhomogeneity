@@ -56,13 +56,13 @@ function initialise_synthetic_params(eval_no, e_d, s0_fat, s0_water, σ)
     im = -γ .* b0_d
     e_d .= complex.(r2_d, im)
 
-    s0_total = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0_water")) 
-    + ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0_fat"))
+    # s0_total = ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0_water")) 
+    # .+ ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0_fat"))
 
     # s0_fat .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Data/Synthetic/2d/$(eval_no)_s0_water"))
     # s0_water .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Synthetic/2d/InitialPrediction/s0_water_$eval_no"))
-    # s0_fat .= 0
-    # s0_water .= 0
-    s0_fat .= s0_total ./ 2
-    s0_water .= s0_total ./ 2
+    s0_fat .= 0
+    s0_water .= 0
+    # s0_fat .= s0_total ./ 2
+    # s0_water .= s0_total ./ 2
 end
