@@ -7,7 +7,7 @@ The operators take fat modulation and off-resonance from magnetic field inhomoge
 
 ## Related research
 
-'Improving T2* Estimation for Detection of Tumour Hypoxia in an MR-Linac' by Dominic Qu
+'Improving T2* Estimation for Detection of Tumour Hypoxia with an MR-Linac' by Dominic Qu
 
 An Imperial College Department of Computing MEng Individual Project with the Institute of Cancer Research
 
