@@ -1,20 +1,4 @@
-"""
-    fit_t2star(x, echo_times, b0_map, s0_phase; mask=nothing)
-
-Fit T2* and S0 magnitude from complex MRI data.
-
-# Arguments
-- `x`: Complex signal reconstruction of shape (nx, ny, nz, necho)
-- `echo_times`: Echo times in seconds (array of length necho)
-- `b0_map`: B0 field map in Tesla (shape: nx, ny, nz)
-- `s0_phase`: Phase of S0 (shape: nx, ny, nz)
-- `mask`: Optional binary mask to restrict fitting (shape: nx, ny, nz)
-
-# Returns
-- `t2star_map`: T2* map in seconds (shape: nx, ny, nz)
-- `s0_mag`: S0 magnitude (shape: nx, ny, nz)
-"""
-function fit_t2star(x, echo_times, b0_map, s0_phase; mask=nothing)
+function fit_t2star(x, echo_times; mask=nothing)
     # Initialize output maps
     t2star_map = zeros(Float64, nx, ny, nz)
     s0_mag = zeros(Float64, nx, ny, nz)
@@ -33,18 +17,8 @@ function fit_t2star(x, echo_times, b0_map, s0_phase; mask=nothing)
                 end
                 
                 # Extract the signal time course for this voxel
-                signal_timecourse = vec(x[i,j,k,:])
-                
-                # Extract B0 and S0 phase for this voxel
-                b0_val = b0_map[i,j,k]
-                phase_val = s0_phase[i,j,k]
-                
-                # Remove the B0-induced phase evolution and initial phase
-                corrected_signal = signal_timecourse .* exp.(-im * (γ * b0_val .* echo_times .+ phase_val))
-                
-                # Now we have |S₀|e^(-TE/T2*), take magnitude
-                magnitude_data = abs.(corrected_signal)
-                
+                magnitude_data = abs.(x[i,j,k,:])
+
                 # Fit mono-exponential to magnitude data
                 t2star_val, s0_mag_val = fit_monoexponential(echo_times, magnitude_data)
                 
@@ -58,19 +32,6 @@ function fit_t2star(x, echo_times, b0_map, s0_phase; mask=nothing)
     return t2star_map, s0_mag
 end
 
-"""
-    fit_monoexponential(xdata, ydata)
-
-Fit a mono-exponential decay function: y = a * exp(-x/b)
-
-# Arguments
-- `xdata`: Independent variable (time)
-- `ydata`: Dependent variable (signal magnitude)
-
-# Returns
-- `b`: Time constant (T2*)
-- `a`: Initial amplitude (|S₀|)
-"""
 function fit_monoexponential(xdata, ydata)
     # Handle case of low SNR or invalid data
     if any(isnan.(ydata)) || any(isinf.(ydata)) || maximum(ydata) < eps()

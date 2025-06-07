@@ -1,4 +1,4 @@
-function generate_intermediate_image_prediction(x, b0, s0_phase, eval_no, use_fatmod=false; σ=nothing)
+function generate_intermediate_image_prediction(x, s0_phase, eval_no, use_fatmod=false; σ=nothing)
 
     if !isnothing(σ)
         rounded = round(σ; digits=10)
@@ -23,7 +23,7 @@ function generate_intermediate_image_prediction(x, b0, s0_phase, eval_no, use_fa
     echo_times = time_since_last_rf[268,:,1,1]
 
 
-    t2, s0_mag = fit_t2star(x, echo_times, b0, s0_phase)
+    t2, s0_mag = fit_t2star(x, echo_times)
 
     s0 = s0_mag .* cis.((s0_phase .* (π/180)))
 

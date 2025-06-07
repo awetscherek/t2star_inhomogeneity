@@ -155,7 +155,7 @@ function load_synthetic_data(eval_no, config, combine_coils, sens, kx, ky, use_d
     b0, s0_phase = synthetic_b0_prediction(x, eval_no, σ=σ)
 
     #Generate an Intermediate Image reconstruction of the T2
-    intermediate_t2, intermediate_s0 = generate_intermediate_image_prediction(x, b0, s0_phase, eval_no, σ=σ)
+    intermediate_t2, intermediate_s0 = generate_intermediate_image_prediction(x, s0_phase, eval_no, σ=σ)
     
     return y_d, intermediate_t2, intermediate_s0, b0
 end

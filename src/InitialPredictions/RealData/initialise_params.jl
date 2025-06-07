@@ -11,8 +11,8 @@ function initialise_real_params(e_d, s0_d)
 
     im = -γ .* b0_d
 
-    s0_d .= 0.0;
-    # s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x_dcf")[:, :, :, 1])
+    # s0_d .= 0.0;
+    s0_d .= ComplexF64.(ReadWriteCFL.readcfl("/mnt/f/Dominic/Results/Recon/2d/x_dcf")[:, :, :, 1])
     
     if !isfile("/mnt/f/Dominic/Results/Intermediate/2d/s0_dcf.cfl") || !isfile("/mnt/f/Dominic/Results/Intermediate/2d/t2_dcf.cfl")
         @info "No S0 or T2 prediction detected - Generating prediction"    

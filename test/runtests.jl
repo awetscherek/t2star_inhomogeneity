@@ -10,7 +10,7 @@ include("zero_filled_guess.jl")
 
 # Configure Settings
 combine_coils = true
-use_dcf = true
+use_dcf = false
 use_fat_modulation = false
 
 raw, kx, ky, kz, config, sens, timepoints, fat_modulation = load_and_process_data(combine_coils, use_fat_modulation)
@@ -21,7 +21,7 @@ tol=1e-9
 #Precision of approximation of timepoints
 # 1 - No approximation (NUFFT for every time point)
 # nkx (536) - Echo time of each assumed to be the timepoint
-timepoint_window_size = 134
+timepoint_window_size = 536
 
 (
     y_d,
@@ -84,20 +84,6 @@ function adjoint_operator(e, s0)
 end
 
 # zero_filled_guess(combine_coils, config, forward_operator)
-
-# @testset "Forward/Adjoint gradient consistency" begin
-#     res = (nx, ny, nz)
-#     check_forward_adjoint_gradient_consistency(
-#       forward_operator,
-#       adjoint_operator,
-#       res,   # r2
-#       res,   # b0
-#       res;   # s0
-#       rtol=0.05,
-#       ε=5e-2,
-#       repetitions=30,
-#     )
-# end
 
 @testset "Forward/Adjoint gradient consistency" begin
     res = (nx, ny, nz)

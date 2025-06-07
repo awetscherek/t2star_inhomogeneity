@@ -3,7 +3,7 @@ using DqT2
 # Configure Settings
 combine_coils = true
 use_dcf = true
-use_fat_modulation = false
+use_fat_modulation = true
 
 gdmode = Lbfgs()
 
